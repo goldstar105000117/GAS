@@ -49,6 +49,7 @@ function onOpen() {
     .addItem('Generate Closer Study by Days', 'generateCloserStudyByDays')
     .addItem('Generate Closer Study by Closer', 'generateCloserStudyByCloser')
     .addItem('Generate Vortex Data', 'generateVortexData')
+    .addItem('Generate Vortex Data Monthly', 'generateVortexDataMonthly')
     .addToUi();
 }
 
@@ -179,6 +180,11 @@ function setupHourlyTrigger() {
       .create();
 
     ScriptApp.newTrigger('updateVortexData')
+      .timeBased()
+      .everyHours(1)
+      .create();
+
+    ScriptApp.newTrigger('updateVortexDataMonthly')
       .timeBased()
       .everyHours(1)
       .create();
@@ -3372,6 +3378,303 @@ function updateVortexData() {
 
   } catch (error) {
     console.error('Failed to update "Vortex Data" report:', error);
+    throw error;
+  }
+}
+
+/**
+ * Main function to generate the Vortex Study Monthly report
+*/
+function generateVortexDataMonthly() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    showLoadingMessage(ui);
+
+    let sheet = getOrCreateSheet(spreadsheet, 'Vortex Data Monthly');
+    sheet.clear();
+
+    // Generate monthly data from September 2025 to current month
+    const monthlyData = generateMonthlyVortexData();
+
+    // Generate vortex monthly report
+    generateVortexMonthlyReport(sheet, monthlyData);
+
+    showSuccessMessage(ui);
+
+  } catch (error) {
+    showErrorMessage(ui, error);
+    console.error('Vortex Study Monthly report generation failed:', error);
+  }
+}
+
+/**
+ * Generate monthly Vortex data from September 2025 to current month
+*/
+function generateMonthlyVortexData() {
+  const today = getCurrentDateNY();
+  const startDate = new Date('2025-09-01T00:00:00');
+  const monthlyData = [];
+
+  // Fetch all data sources (reusing existing functions)
+  const lowTicketData = fetchLowTicketBuysData();
+  const partialTriageData = fetchPartialTriageData();
+  const bookedTriageData = fetchBookedTriageData();
+  const bookedClosingCallData = fetchBookedClosingCallData();
+  const shownCallsData = fetchShownCallsData();
+  const closesData = fetchClosesData();
+  const newCashData = fetchNewCashData();
+  const fuCashData = fetchFUCashData();
+
+  // Create maps for aggregating data by month
+  const discordJoinedMap = createMonthlyDataMap(lowTicketData, 'totalInvites');
+  const lowTicketMap = createMonthlyDataMap(lowTicketData, 'lowTicket');
+  const partialTriageMap = createMonthlyCountMap(partialTriageData);
+  const bookedTriageMap = createMonthlyCountMap(bookedTriageData);
+  const bookedClosingCallMap = createMonthlyCountMap(bookedClosingCallData);
+  const shownCallsMap = createMonthlyCountMap(shownCallsData);
+  const closesMap = createMonthlyCountMap(closesData);
+  const newCashMap = createMonthlySumMap(newCashData, 'cashCollected');
+  const fuCashMap = createMonthlySumMap(fuCashData, 'cashCollected');
+
+  // Generate data for each month from Sept 2025 to current month
+  const currentDate = new Date(startDate);
+  while (currentDate <= today) {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+    
+    // Get data for this month, default to 0 if not found
+    const discordJoins = discordJoinedMap.get(monthKey) || 0;
+    const lowTicketBuys = lowTicketMap.get(monthKey) || 0;
+    const partialTriage = partialTriageMap.get(monthKey) || 0;
+    const bookedTriage = bookedTriageMap.get(monthKey) || 0;
+    const totalTriageCalls = partialTriage + bookedTriage;
+    const bookedClosingCall = bookedClosingCallMap.get(monthKey) || 0;
+    const shownCalls = shownCallsMap.get(monthKey) || 0;
+    const closes = closesMap.get(monthKey) || 0;
+    const newCash = newCashMap.get(monthKey) || 0;
+    const fuCash = fuCashMap.get(monthKey) || 0;
+
+    monthlyData.push({
+      date: new Date(currentDate),
+      discordJoins: discordJoins,
+      lowTicketBuys: lowTicketBuys,
+      bookedTriage: bookedTriage,
+      partialTriage: partialTriage,
+      totalTriageCalls: totalTriageCalls,
+      bookedClosingCall: bookedClosingCall,
+      shownCalls: shownCalls,
+      closes: closes,
+      newCash: newCash,
+      fuCash: fuCash
+    });
+
+    // Move to next month
+    currentDate.setMonth(currentDate.getMonth() + 1);
+  }
+
+  return monthlyData;
+}
+
+/**
+ * Create monthly data map for summing values by month
+ */
+function createMonthlyDataMap(data, valueField) {
+  const map = new Map();
+  
+  data.forEach(record => {
+    if (record.date) {
+      const year = record.date.getFullYear();
+      const month = record.date.getMonth() + 1;
+      const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+      
+      const currentValue = map.get(monthKey) || 0;
+      map.set(monthKey, currentValue + (record[valueField] || 0));
+    }
+  });
+  
+  return map;
+}
+
+/**
+ * Create monthly count map for counting occurrences by month
+ */
+function createMonthlyCountMap(data) {
+  const map = new Map();
+  
+  data.forEach(record => {
+    if (record.date) {
+      const year = record.date.getFullYear();
+      const month = record.date.getMonth() + 1;
+      const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+      
+      const currentCount = map.get(monthKey) || 0;
+      map.set(monthKey, currentCount + 1);
+    }
+  });
+  
+  return map;
+}
+
+/**
+ * Create monthly sum map for summing cash values by month
+ */
+function createMonthlySumMap(data, valueField) {
+  const map = new Map();
+  
+  data.forEach(record => {
+    if (record.date) {
+      const year = record.date.getFullYear();
+      const month = record.date.getMonth() + 1;
+      const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+      
+      const currentValue = map.get(monthKey) || 0;
+      map.set(monthKey, currentValue + (record[valueField] || 0));
+    }
+  });
+  
+  return map;
+}
+
+/**
+ * Generate the complete Vortex Study Monthly report
+ */
+function generateVortexMonthlyReport(sheet, monthlyData) {
+  setupVortexMonthlyHeaders(sheet);
+
+  let currentRow = 3;
+
+  // Populate each month's data
+  monthlyData.forEach((monthData, index) => {
+    populateVortexMonthlyData(sheet, currentRow, monthData);
+    currentRow += 1;
+  });
+
+  formatVortexMonthlySheet(sheet);
+}
+
+/**
+ * Setup Vortex Study Monthly report headers
+*/
+function setupVortexMonthlyHeaders(sheet) {
+  const mainHeader = sheet.getRange('A1:K1');
+  mainHeader.merge()
+    .setValue('Vortex Study Report - Monthly View')
+    .setBackground('#4a90e2')
+    .setFontColor('white')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center')
+    .setFontSize(14);
+
+  // Column headers
+  const headers = [
+    'Date', 'Discord Joins', 'Low Ticket Buys', 'Booked Triage', 'Partial Triage',
+    'Total Triage Calls', 'Booked Closing Call', 'Shown Calls', 'Closes', 'New Cash', 'FU Cash'
+  ];
+  const headerRange = sheet.getRange(2, 1, 1, headers.length);
+  headerRange.setValues([headers])
+    .setBackground('#d9e2f3')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center');
+}
+
+/**
+ * Populate data for a specific month (Vortex Study Monthly)
+ */
+function populateVortexMonthlyData(sheet, row, monthData) {
+  // Format date as "Month YYYY" (e.g., "September 2025")
+  const formattedDate = Utilities.formatDate(monthData.date, 'America/New_York', 'MMMM yyyy');
+
+  const discordJoins = monthData.discordJoins || 0;
+  const lowTicketBuys = monthData.lowTicketBuys || 0;
+  const bookedTriage = monthData.bookedTriage || 0;
+  const partialTriage = monthData.partialTriage || 0;
+  const totalTriageCalls = monthData.totalTriageCalls || 0;
+  const bookedClosingCall = monthData.bookedClosingCall || 0;
+  const shownCalls = monthData.shownCalls || 0;
+  const closes = monthData.closes || 0;
+  const newCash = monthData.newCash || 0;
+  const fuCash = monthData.fuCash || 0;
+
+  const formattedDiscordJoins = discordJoins > 0 ? discordJoins.toLocaleString() : discordJoins;
+
+  const rowData = [
+    formattedDate,
+    formattedDiscordJoins,
+    lowTicketBuys,
+    bookedTriage,
+    partialTriage,
+    totalTriageCalls,
+    bookedClosingCall,
+    shownCalls,
+    closes,
+    newCash > 0 ? `$${newCash.toLocaleString()}` : newCash,
+    fuCash > 0 ? `$${fuCash.toLocaleString()}` : fuCash
+  ];
+
+  // Write data to sheet
+  sheet.getRange(row, 1, 1, rowData.length).setValues([rowData]);
+}
+
+/**
+ * Format the Vortex Study Monthly sheet for better readability
+ */
+function formatVortexMonthlySheet(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+
+  // Set specific column widths for better visibility
+  sheet.setColumnWidth(1, 120);  // Date column
+  sheet.setColumnWidth(2, 120);  // Discord Joins
+  sheet.setColumnWidth(3, 130);  // Low Ticket Buys
+  sheet.setColumnWidth(4, 120);  // Booked Triage
+  sheet.setColumnWidth(5, 120);  // Partial Triage
+  sheet.setColumnWidth(6, 140);  // Total Triage Calls
+  sheet.setColumnWidth(7, 150);  // Booked Closing Call
+  sheet.setColumnWidth(8, 110);  // Shown Calls
+  sheet.setColumnWidth(9, 80);   // Closes
+  sheet.setColumnWidth(10, 120); // New Cash
+  sheet.setColumnWidth(11, 100); // FU Cash
+
+  sheet.getRange(1, 1, lastRow, lastCol)
+    .setBorder(true, true, true, true, true, true);
+
+  sheet.getRange(3, 1, lastRow - 2, lastCol).setHorizontalAlignment('center');
+
+  sheet.setFrozenRows(2);
+}
+
+/**
+ * Update the "Vortex Data Monthly" report
+*/
+function updateVortexDataMonthly() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    // Create or get the "Vortex Data Monthly" sheet
+    let sheet = spreadsheet.getSheetByName('Vortex Data Monthly');
+    if (!sheet) {
+      sheet = spreadsheet.insertSheet('Vortex Data Monthly', 5);
+    } else {
+      spreadsheet.setActiveSheet(sheet);
+    }
+
+    console.log('Updating "Vortex Data Monthly" report...');
+
+    // Clear existing data
+    sheet.clear();
+
+    // Generate monthly data from September 2025 to current month
+    const monthlyData = generateMonthlyVortexData();
+
+    // Generate vortex monthly report
+    generateVortexMonthlyReport(sheet, monthlyData);
+
+    console.log('"Vortex Data Monthly" report updated successfully');
+
+  } catch (error) {
+    console.error('Failed to update "Vortex Data Monthly" report:', error);
     throw error;
   }
 }
