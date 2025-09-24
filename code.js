@@ -49,6 +49,7 @@ function onOpen() {
     .addItem('Generate Closer Study by Days', 'generateCloserStudyByDays')
     .addItem('Generate Closer Study by Closer', 'generateCloserStudyByCloser')
     .addItem('Generate Vortex Data', 'generateVortexData')
+    .addItem('Generate Vortex Data Weekly', 'generateVortexDataWeekly')
     .addItem('Generate Vortex Data Monthly', 'generateVortexDataMonthly')
     .addToUi();
 }
@@ -180,6 +181,11 @@ function setupHourlyTrigger() {
       .create();
 
     ScriptApp.newTrigger('updateVortexData')
+      .timeBased()
+      .everyHours(1)
+      .create();
+
+    ScriptApp.newTrigger('updateVortexDataWeekly')
       .timeBased()
       .everyHours(1)
       .create();
@@ -3545,10 +3551,12 @@ function generateVortexMonthlyReport(sheet, monthlyData) {
   setupVortexMonthlyHeaders(sheet);
 
   let currentRow = 3;
+  let previousMonthData = null;
 
   // Populate each month's data
   monthlyData.forEach((monthData, index) => {
-    populateVortexMonthlyData(sheet, currentRow, monthData);
+    populateVortexMonthlyData(sheet, currentRow, monthData, previousMonthData);
+    previousMonthData = monthData;
     currentRow += 1;
   });
 
@@ -3583,7 +3591,7 @@ function setupVortexMonthlyHeaders(sheet) {
 /**
  * Populate data for a specific month (Vortex Study Monthly)
  */
-function populateVortexMonthlyData(sheet, row, monthData) {
+function populateVortexMonthlyData(sheet, row, monthData, previousMonthData = null) {
   // Format date as "Month YYYY" (e.g., "September 2025")
   const formattedDate = Utilities.formatDate(monthData.date, 'America/New_York', 'MMMM yyyy');
 
@@ -3599,14 +3607,18 @@ function populateVortexMonthlyData(sheet, row, monthData) {
   const fuCash = monthData.fuCash || 0;
 
   const formattedDiscordJoins = discordJoins > 0 ? discordJoins.toLocaleString() : discordJoins;
+  const formattedlowTicketBuys = lowTicketBuys > 0 ? lowTicketBuys.toLocaleString() : lowTicketBuys;
+  const formattedbookedTriage = bookedTriage > 0 ? bookedTriage.toLocaleString() : bookedTriage;
+  const formattedpartialTriage = partialTriage > 0 ? partialTriage.toLocaleString() : partialTriage;
+  const formattedtotalTriageCalls = totalTriageCalls > 0 ? totalTriageCalls.toLocaleString() : totalTriageCalls;
 
   const rowData = [
     formattedDate,
     formattedDiscordJoins,
-    lowTicketBuys,
-    bookedTriage,
-    partialTriage,
-    totalTriageCalls,
+    formattedlowTicketBuys,
+    formattedbookedTriage,
+    formattedpartialTriage,
+    formattedtotalTriageCalls,
     bookedClosingCall,
     shownCalls,
     closes,
@@ -3616,6 +3628,42 @@ function populateVortexMonthlyData(sheet, row, monthData) {
 
   // Write data to sheet
   sheet.getRange(row, 1, 1, rowData.length).setValues([rowData]);
+
+  if (previousMonthData) {
+    const currentValues = [discordJoins, lowTicketBuys, bookedTriage, partialTriage, totalTriageCalls, bookedClosingCall, shownCalls, closes, newCash, fuCash];
+    const previousValues = [
+      previousMonthData.discordJoins || 0,
+      previousMonthData.lowTicketBuys || 0,
+      previousMonthData.bookedTriage || 0,
+      previousMonthData.partialTriage || 0,
+      previousMonthData.totalTriageCalls || 0,
+      previousMonthData.bookedClosingCall || 0,
+      previousMonthData.shownCalls || 0,
+      previousMonthData.closes || 0,
+      previousMonthData.newCash || 0,
+      previousMonthData.fuCash || 0
+    ];
+
+    // Apply formatting to columns 2-10 (skip date column)
+    for (let col = 2; col <= 11; col++) {
+      const currentValue = currentValues[col - 2];
+      const previousValue = previousValues[col - 2];
+
+      let backgroundColor = null;
+
+      if (currentValue > previousValue) {
+        backgroundColor = '#07fc03'; // Green
+      } else if (currentValue < previousValue) {
+        backgroundColor = '#ff0000'; // Red
+      } else if (currentValue === previousValue) {
+        backgroundColor = '#ffff00'; // Yellow
+      }
+
+      if (backgroundColor) {
+        sheet.getRange(row, col).setBackground(backgroundColor);
+      }
+    }
+  }
 }
 
 /**
@@ -3675,6 +3723,389 @@ function updateVortexDataMonthly() {
 
   } catch (error) {
     console.error('Failed to update "Vortex Data Monthly" report:', error);
+    throw error;
+  }
+}
+
+/**
+ * Main function to generate the Vortex Study Weekly report
+ */
+function generateVortexDataWeekly() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    showLoadingMessage(ui);
+
+    let sheet = getOrCreateSheet(spreadsheet, 'Vortex Data Weekly');
+    sheet.clear();
+
+    // Generate weekly data from first Friday-Thursday period to current week
+    const weeklyData = generateWeeklyVortexData();
+
+    // Generate vortex weekly report
+    generateVortexWeeklyReport(sheet, weeklyData);
+
+    showSuccessMessage(ui);
+
+  } catch (error) {
+    showErrorMessage(ui, error);
+    console.error('Vortex Study Weekly report generation failed:', error);
+  }
+}
+
+/**
+ * Generate weekly Vortex data from September 2025 onwards (Friday to Thursday)
+ */
+function generateWeeklyVortexData() {
+  const today = getCurrentDateNY();
+  const weeklyData = [];
+
+  // Fetch all data sources (reusing existing functions)
+  const lowTicketData = fetchLowTicketBuysData();
+  const partialTriageData = fetchPartialTriageData();
+  const bookedTriageData = fetchBookedTriageData();
+  const bookedClosingCallData = fetchBookedClosingCallData();
+  const shownCallsData = fetchShownCallsData();
+  const closesData = fetchClosesData();
+  const newCashData = fetchNewCashData();
+  const fuCashData = fetchFUCashData();
+
+  // Create maps for aggregating data by week
+  const discordJoinedMap = createWeeklyDataMap(lowTicketData, 'totalInvites');
+  const lowTicketMap = createWeeklyDataMap(lowTicketData, 'lowTicket');
+  const partialTriageMap = createWeeklyCountMap(partialTriageData);
+  const bookedTriageMap = createWeeklyCountMap(bookedTriageData);
+  const bookedClosingCallMap = createWeeklyCountMap(bookedClosingCallData);
+  const shownCallsMap = createWeeklyCountMap(shownCallsData);
+  const closesMap = createWeeklyCountMap(closesData);
+  const newCashMap = createWeeklySumMap(newCashData, 'cashCollected');
+  const fuCashMap = createWeeklySumMap(fuCashData, 'cashCollected');
+
+  // Find first Friday on or after September 1st, 2025
+  const startDate = findFirstFriday(new Date('2025-08-29T00:00:00'));
+  
+  // Generate data for each week (Friday to Thursday) until today
+  let weekStart = new Date(startDate);
+  
+  while (weekStart <= today) {
+    let weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6); // Thursday of the same week
+    
+    const weekKey = formatWeekKey(weekStart);
+    
+    // Get data for this week, default to 0 if not found
+    const discordJoins = discordJoinedMap.get(weekKey) || 0;
+    const lowTicketBuys = lowTicketMap.get(weekKey) || 0;
+    const partialTriage = partialTriageMap.get(weekKey) || 0;
+    const bookedTriage = bookedTriageMap.get(weekKey) || 0;
+    const totalTriageCalls = partialTriage + bookedTriage;
+    const bookedClosingCall = bookedClosingCallMap.get(weekKey) || 0;
+    const shownCalls = shownCallsMap.get(weekKey) || 0;
+    const closes = closesMap.get(weekKey) || 0;
+    const newCash = newCashMap.get(weekKey) || 0;
+    const fuCash = fuCashMap.get(weekKey) || 0;
+
+    weeklyData.push({
+      weekStart: new Date(weekStart),
+      weekEnd: new Date(weekEnd),
+      discordJoins: discordJoins,
+      lowTicketBuys: lowTicketBuys,
+      bookedTriage: bookedTriage,
+      partialTriage: partialTriage,
+      totalTriageCalls: totalTriageCalls,
+      bookedClosingCall: bookedClosingCall,
+      shownCalls: shownCalls,
+      closes: closes,
+      newCash: newCash,
+      fuCash: fuCash
+    });
+
+    // Move to next Friday
+    weekStart.setDate(weekStart.getDate() + 7);
+  }
+
+  return weeklyData;
+}
+
+/**
+ * Find the first Friday on or after the given date
+ */
+function findFirstFriday(date) {
+  const dayOfWeek = date.getDay(); // 0 = Sunday, 5 = Friday
+  const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
+  const firstFriday = new Date(date);
+  firstFriday.setDate(date.getDate() + daysUntilFriday);
+  return firstFriday;
+}
+
+/**
+ * Format week key for Friday start date (YYYY-MM-DD format)
+ */
+function formatWeekKey(fridayDate) {
+  const year = fridayDate.getFullYear();
+  const month = (fridayDate.getMonth() + 1).toString().padStart(2, '0');
+  const day = fridayDate.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Get the Friday start date for any given date
+ */
+function getWeekStartFriday(date) {
+  const dayOfWeek = date.getDay(); // 0 = Sunday, 5 = Friday
+  let daysFromFriday;
+  
+  if (dayOfWeek >= 5) { // Friday or Saturday
+    daysFromFriday = dayOfWeek - 5;
+  } else { // Sunday through Thursday
+    daysFromFriday = dayOfWeek + 2; // Days since last Friday
+  }
+  
+  const weekStart = new Date(date);
+  weekStart.setDate(date.getDate() - daysFromFriday);
+  return weekStart;
+}
+
+/**
+ * Create weekly data map for summing values by week
+ */
+function createWeeklyDataMap(data, valueField) {
+  const map = new Map();
+  
+  data.forEach(record => {
+    if (record.date) {
+      const weekStart = getWeekStartFriday(record.date);
+      const weekKey = formatWeekKey(weekStart);
+      
+      const currentValue = map.get(weekKey) || 0;
+      map.set(weekKey, currentValue + (record[valueField] || 0));
+    }
+  });
+  
+  return map;
+}
+
+/**
+ * Create weekly count map for counting occurrences by week
+ */
+function createWeeklyCountMap(data) {
+  const map = new Map();
+  
+  data.forEach(record => {
+    if (record.date) {
+      const weekStart = getWeekStartFriday(record.date);
+      const weekKey = formatWeekKey(weekStart);
+      
+      const currentCount = map.get(weekKey) || 0;
+      map.set(weekKey, currentCount + 1);
+    }
+  });
+  
+  return map;
+}
+
+/**
+ * Create weekly sum map for summing cash values by week
+ */
+function createWeeklySumMap(data, valueField) {
+  const map = new Map();
+  
+  data.forEach(record => {
+    if (record.date) {
+      const weekStart = getWeekStartFriday(record.date);
+      const weekKey = formatWeekKey(weekStart);
+      
+      const currentValue = map.get(weekKey) || 0;
+      map.set(weekKey, currentValue + (record[valueField] || 0));
+    }
+  });
+  
+  return map;
+}
+
+/**
+ * Generate the complete Vortex Study Weekly report
+ */
+function generateVortexWeeklyReport(sheet, weeklyData) {
+  setupVortexWeeklyHeaders(sheet);
+
+  let currentRow = 3;
+  let previousWeekData = null;
+
+  // Populate each week's data
+  weeklyData.forEach((weekData, index) => {
+    populateVortexWeeklyData(sheet, currentRow, weekData, previousWeekData);
+    previousWeekData = weekData;
+    currentRow += 1;
+  });
+
+  formatVortexWeeklySheet(sheet);
+}
+
+/**
+ * Setup Vortex Study Weekly report headers
+ */
+function setupVortexWeeklyHeaders(sheet) {
+  // Main header
+  const mainHeader = sheet.getRange('A1:K1');
+  mainHeader.merge()
+    .setValue('Vortex Study Report - Weekly View')
+    .setBackground('#4a90e2')
+    .setFontColor('white')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center')
+    .setFontSize(14);
+
+  // Column headers
+  const headers = [
+    'Date', 'Discord Joins', 'Low Ticket Buys', 'Booked Triage', 'Partial Triage',
+    'Total Triage Calls', 'Booked Closing Call', 'Shown Calls', 'Closes', 'New Cash', 'FU Cash'
+  ];
+  const headerRange = sheet.getRange(2, 1, 1, headers.length);
+  headerRange.setValues([headers])
+    .setBackground('#d9e2f3')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center');
+}
+
+/**
+ * Populate data for a specific week (Vortex Study Weekly)
+ */
+function populateVortexWeeklyData(sheet, row, weekData, previousWeekData = null) {
+  // Format date range as "M/D/YYYY - M/D/YYYY" (e.g., "8/29/2025 - 9/4/2025")
+  const startFormatted = Utilities.formatDate(weekData.weekStart, 'America/New_York', 'M/d/yyyy');
+  const endFormatted = Utilities.formatDate(weekData.weekEnd, 'America/New_York', 'M/d/yyyy');
+  const formattedDate = `${startFormatted} - ${endFormatted}`;
+
+  const discordJoins = weekData.discordJoins || 0;
+  const lowTicketBuys = weekData.lowTicketBuys || 0;
+  const bookedTriage = weekData.bookedTriage || 0;
+  const partialTriage = weekData.partialTriage || 0;
+  const totalTriageCalls = weekData.totalTriageCalls || 0;
+  const bookedClosingCall = weekData.bookedClosingCall || 0;
+  const shownCalls = weekData.shownCalls || 0;
+  const closes = weekData.closes || 0;
+  const newCash = weekData.newCash || 0;
+  const fuCash = weekData.fuCash || 0;
+
+  const formattedDiscordJoins = discordJoins > 0 ? discordJoins.toLocaleString() : discordJoins;
+  const formattedlowTicketBuys = lowTicketBuys > 0 ? lowTicketBuys.toLocaleString() : lowTicketBuys;
+  const formattedbookedTriage = bookedTriage > 0 ? bookedTriage.toLocaleString() : bookedTriage;
+  const formattedpartialTriage = partialTriage > 0 ? partialTriage.toLocaleString() : partialTriage;
+  const formattedtotalTriageCalls = totalTriageCalls > 0 ? totalTriageCalls.toLocaleString() : totalTriageCalls;
+
+  const rowData = [
+    formattedDate,
+    formattedDiscordJoins,
+    formattedlowTicketBuys,
+    formattedbookedTriage,
+    formattedpartialTriage,
+    formattedtotalTriageCalls,
+    bookedClosingCall,
+    shownCalls,
+    closes,
+    newCash > 0 ? `$${newCash.toLocaleString()}` : newCash,
+    fuCash > 0 ? `$${fuCash.toLocaleString()}` : fuCash
+  ];
+
+  // Write data to sheet
+  sheet.getRange(row, 1, 1, rowData.length).setValues([rowData]);
+
+  if (previousWeekData) {
+    const currentValues = [discordJoins, lowTicketBuys, bookedTriage, partialTriage, totalTriageCalls, bookedClosingCall, shownCalls, closes, newCash, fuCash];
+    const previousValues = [
+      previousWeekData.discordJoins || 0,
+      previousWeekData.lowTicketBuys || 0,
+      previousWeekData.bookedTriage || 0,
+      previousWeekData.partialTriage || 0,
+      previousWeekData.totalTriageCalls || 0,
+      previousWeekData.bookedClosingCall || 0,
+      previousWeekData.shownCalls || 0,
+      previousWeekData.closes || 0,
+      previousWeekData.newCash || 0,
+      previousWeekData.fuCash || 0
+    ];
+
+    // Apply formatting to columns 2-10 (skip date column)
+    for (let col = 2; col <= 11; col++) {
+      const currentValue = currentValues[col - 2];
+      const previousValue = previousValues[col - 2];
+
+      let backgroundColor = null;
+
+      if (currentValue > previousValue) {
+        backgroundColor = '#07fc03'; // Green
+      } else if (currentValue < previousValue) {
+        backgroundColor = '#ff0000'; // Red
+      } else if (currentValue === previousValue) {
+        backgroundColor = '#ffff00'; // Yellow
+      }
+
+      if (backgroundColor) {
+        sheet.getRange(row, col).setBackground(backgroundColor);
+      }
+    }
+  }
+}
+
+/**
+ * Format the Vortex Study Weekly sheet for better readability
+ */
+function formatVortexWeeklySheet(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+
+  // Set specific column widths for better visibility
+  sheet.setColumnWidth(1, 160);  // Date column (wider for date range)
+  sheet.setColumnWidth(2, 120);  // Discord Joins
+  sheet.setColumnWidth(3, 130);  // Low Ticket Buys
+  sheet.setColumnWidth(4, 120);  // Booked Triage
+  sheet.setColumnWidth(5, 120);  // Partial Triage
+  sheet.setColumnWidth(6, 140);  // Total Triage Calls
+  sheet.setColumnWidth(7, 150);  // Booked Closing Call
+  sheet.setColumnWidth(8, 110);  // Shown Calls
+  sheet.setColumnWidth(9, 80);   // Closes
+  sheet.setColumnWidth(10, 120); // New Cash
+  sheet.setColumnWidth(11, 100); // FU Cash
+
+  sheet.getRange(1, 1, lastRow, lastCol)
+    .setBorder(true, true, true, true, true, true);
+
+  sheet.getRange(3, 1, lastRow - 2, lastCol).setHorizontalAlignment('center');
+
+  sheet.setFrozenRows(2);
+}
+
+/**
+ * Update the "Vortex Data Weekly" report
+ */
+function updateVortexDataWeekly() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    // Create or get the "Vortex Data Weekly" sheet
+    let sheet = spreadsheet.getSheetByName('Vortex Data Weekly');
+    if (!sheet) {
+      sheet = spreadsheet.insertSheet('Vortex Data Weekly', 5);
+    } else {
+      spreadsheet.setActiveSheet(sheet);
+    }
+
+    console.log('Updating "Vortex Data Weekly" report...');
+
+    // Clear existing data
+    sheet.clear();
+
+    // Generate weekly data from first Friday to current week
+    const weeklyData = generateWeeklyVortexData();
+
+    // Generate vortex weekly report
+    generateVortexWeeklyReport(sheet, weeklyData);
+
+    console.log('"Vortex Data Weekly" report updated successfully');
+
+  } catch (error) {
+    console.error('Failed to update "Vortex Data Weekly" report:', error);
     throw error;
   }
 }
