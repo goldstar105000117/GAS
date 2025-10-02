@@ -2684,7 +2684,7 @@ function generateVortexReport(sheet, dailyData) {
  */
 function setupVortexHeaders(sheet) {
   // Main header
-  const mainHeader = sheet.getRange('A1:K1');
+  const mainHeader = sheet.getRange('A1:L1');
   mainHeader.merge()
     .setValue('Vortex Study Report')
     .setBackground('#4a90e2')
@@ -2695,7 +2695,7 @@ function setupVortexHeaders(sheet) {
 
   // Column headers
   const headers = [
-    'Date', 'Discord Joins', 'Low Ticket Buys', 'Booked Triage', 'Partial Triage', 'Total Triage Calls',
+    'Date', 'Discord Joins', 'Low Ticket Buys', 'Conversion Rate', 'Booked Triage', 'Partial Triage', 'Total Triage Calls',
     'Booked Closing Call', 'Shown Calls', 'Closes', 'New Cash', 'FU Cash'
   ];
   const headerRange = sheet.getRange(2, 1, 1, headers.length);
@@ -2722,6 +2722,7 @@ function populateVortexDailyData(sheet, row, dayData, previousDayData = null) {
   const closes = dayData.closes || 0;
   const newCash = dayData.newCash || 0;
   const fuCash = dayData.fuCash || 0;
+  const conversionRate = discordJoins > 0 ? `${Math.round((lowTicketBuys / discordJoins) * 100)}%` : '0%';
   const formattedDiscordJoins = discordJoins > 0 ? discordJoins.toLocaleString() : discordJoins;
   const formattedtotalTriageCalls = totalTriageCalls > 0 ? totalTriageCalls.toLocaleString() : totalTriageCalls;
 
@@ -2729,6 +2730,7 @@ function populateVortexDailyData(sheet, row, dayData, previousDayData = null) {
     formattedDate,
     formattedDiscordJoins,
     lowTicketBuys,
+    conversionRate,
     bookedTriage,
     partialTriage,
     formattedtotalTriageCalls,
@@ -2744,10 +2746,14 @@ function populateVortexDailyData(sheet, row, dayData, previousDayData = null) {
 
   // Apply conditional formatting if we have previous day data
   if (previousDayData) {
-    const currentValues = [discordJoins, lowTicketBuys, bookedTriage, partialTriage, totalTriageCalls, bookedClosingCall, shownCalls, closes, newCash, fuCash];
+    const prevConversionRate = previousDayData.discordJoins > 0 ? (previousDayData.lowTicketBuys / previousDayData.discordJoins) * 100 : 0;
+    const currConversionRate = discordJoins > 0 ? (lowTicketBuys / discordJoins) * 100 : 0;
+    
+    const currentValues = [discordJoins, lowTicketBuys, currConversionRate, bookedTriage, partialTriage, totalTriageCalls, bookedClosingCall, shownCalls, closes, newCash, fuCash];
     const previousValues = [
       previousDayData.discordJoins || 0,
       previousDayData.lowTicketBuys || 0,
+      prevConversionRate,
       previousDayData.bookedTriage || 0,
       previousDayData.partialTriage || 0,
       previousDayData.totalTriageCalls || 0,
@@ -2758,8 +2764,8 @@ function populateVortexDailyData(sheet, row, dayData, previousDayData = null) {
       previousDayData.fuCash || 0
     ];
 
-    // Apply formatting to columns 2-10 (skip date column)
-    for (let col = 2; col <= 11; col++) {
+    // Apply formatting to columns 2-12 (skip date column)
+    for (let col = 2; col <= 12; col++) {
       const currentValue = currentValues[col - 2];
       const previousValue = previousValues[col - 2];
 
@@ -2791,14 +2797,15 @@ function formatVortexSheet(sheet) {
   sheet.setColumnWidth(1, 100);  // Date column
   sheet.setColumnWidth(2, 120);  // Discord Joins
   sheet.setColumnWidth(3, 130);  // Low Ticket Buys
-  sheet.setColumnWidth(4, 120);  // Booked Triage
-  sheet.setColumnWidth(5, 120);  // Partial Triage
-  sheet.setColumnWidth(6, 140);  // Total Triage Calls
-  sheet.setColumnWidth(7, 150);  // Booked Closing Call
-  sheet.setColumnWidth(8, 110);  // Shown Calls
-  sheet.setColumnWidth(9, 80);   // Closes
-  sheet.setColumnWidth(10, 100);  // New Cash
-  sheet.setColumnWidth(11, 100); // FU Cash
+  sheet.setColumnWidth(4, 130);  // Conversion Rate
+  sheet.setColumnWidth(5, 120);  // Booked Triage
+  sheet.setColumnWidth(6, 120);  // Partial Triage
+  sheet.setColumnWidth(7, 140);  // Total Triage Calls
+  sheet.setColumnWidth(8, 150);  // Booked Closing Call
+  sheet.setColumnWidth(9, 110);  // Shown Calls
+  sheet.setColumnWidth(10, 80);   // Closes
+  sheet.setColumnWidth(11, 100);  // New Cash
+  sheet.setColumnWidth(12, 100); // FU Cash
 
   sheet.getRange(1, 1, lastRow, lastCol)
     .setBorder(true, true, true, true, true, true);
@@ -3577,7 +3584,7 @@ function generateVortexMonthlyReport(sheet, monthlyData) {
  * Setup Vortex Study Monthly report headers
 */
 function setupVortexMonthlyHeaders(sheet) {
-  const mainHeader = sheet.getRange('A1:K1');
+  const mainHeader = sheet.getRange('A1:L1');
   mainHeader.merge()
     .setValue('Vortex Study Report - Monthly View')
     .setBackground('#4a90e2')
@@ -3588,7 +3595,7 @@ function setupVortexMonthlyHeaders(sheet) {
 
   // Column headers
   const headers = [
-    'Date', 'Discord Joins', 'Low Ticket Buys', 'Booked Triage', 'Partial Triage',
+    'Date', 'Discord Joins', 'Low Ticket Buys', 'Conversion Rate', 'Booked Triage', 'Partial Triage',
     'Total Triage Calls', 'Booked Closing Call', 'Shown Calls', 'Closes', 'New Cash', 'FU Cash'
   ];
   const headerRange = sheet.getRange(2, 1, 1, headers.length);
@@ -3615,6 +3622,7 @@ function populateVortexMonthlyData(sheet, row, monthData, previousMonthData = nu
   const closes = monthData.closes || 0;
   const newCash = monthData.newCash || 0;
   const fuCash = monthData.fuCash || 0;
+  const conversionRate = discordJoins > 0 ? `${Math.round((lowTicketBuys / discordJoins) * 100)}%` : '0%';
 
   const formattedDiscordJoins = discordJoins > 0 ? discordJoins.toLocaleString() : discordJoins;
   const formattedlowTicketBuys = lowTicketBuys > 0 ? lowTicketBuys.toLocaleString() : lowTicketBuys;
@@ -3626,6 +3634,7 @@ function populateVortexMonthlyData(sheet, row, monthData, previousMonthData = nu
     formattedDate,
     formattedDiscordJoins,
     formattedlowTicketBuys,
+    conversionRate,
     formattedbookedTriage,
     formattedpartialTriage,
     formattedtotalTriageCalls,
@@ -3640,10 +3649,14 @@ function populateVortexMonthlyData(sheet, row, monthData, previousMonthData = nu
   sheet.getRange(row, 1, 1, rowData.length).setValues([rowData]);
 
   if (previousMonthData) {
-    const currentValues = [discordJoins, lowTicketBuys, bookedTriage, partialTriage, totalTriageCalls, bookedClosingCall, shownCalls, closes, newCash, fuCash];
+    const prevConversionRate = previousMonthData.discordJoins > 0 ? (previousMonthData.lowTicketBuys / previousMonthData.discordJoins) * 100 : 0;
+    const currConversionRate = discordJoins > 0 ? (lowTicketBuys / discordJoins) * 100 : 0;
+    
+    const currentValues = [discordJoins, lowTicketBuys, currConversionRate, bookedTriage, partialTriage, totalTriageCalls, bookedClosingCall, shownCalls, closes, newCash, fuCash];
     const previousValues = [
       previousMonthData.discordJoins || 0,
       previousMonthData.lowTicketBuys || 0,
+      prevConversionRate,
       previousMonthData.bookedTriage || 0,
       previousMonthData.partialTriage || 0,
       previousMonthData.totalTriageCalls || 0,
@@ -3654,8 +3667,8 @@ function populateVortexMonthlyData(sheet, row, monthData, previousMonthData = nu
       previousMonthData.fuCash || 0
     ];
 
-    // Apply formatting to columns 2-10 (skip date column)
-    for (let col = 2; col <= 11; col++) {
+    // Apply formatting to columns 2-12 (skip date column)
+    for (let col = 2; col <= 12; col++) {
       const currentValue = currentValues[col - 2];
       const previousValue = previousValues[col - 2];
 
@@ -3687,14 +3700,15 @@ function formatVortexMonthlySheet(sheet) {
   sheet.setColumnWidth(1, 120);  // Date column
   sheet.setColumnWidth(2, 120);  // Discord Joins
   sheet.setColumnWidth(3, 130);  // Low Ticket Buys
-  sheet.setColumnWidth(4, 120);  // Booked Triage
-  sheet.setColumnWidth(5, 120);  // Partial Triage
-  sheet.setColumnWidth(6, 140);  // Total Triage Calls
-  sheet.setColumnWidth(7, 150);  // Booked Closing Call
-  sheet.setColumnWidth(8, 110);  // Shown Calls
-  sheet.setColumnWidth(9, 80);   // Closes
-  sheet.setColumnWidth(10, 120); // New Cash
-  sheet.setColumnWidth(11, 100); // FU Cash
+  sheet.setColumnWidth(4, 130);  // Conversion Rate
+  sheet.setColumnWidth(5, 120);  // Booked Triage
+  sheet.setColumnWidth(6, 120);  // Partial Triage
+  sheet.setColumnWidth(7, 140);  // Total Triage Calls
+  sheet.setColumnWidth(8, 150);  // Booked Closing Call
+  sheet.setColumnWidth(9, 110);  // Shown Calls
+  sheet.setColumnWidth(10, 80);   // Closes
+  sheet.setColumnWidth(11, 120); // New Cash
+  sheet.setColumnWidth(12, 100); // FU Cash
 
   sheet.getRange(1, 1, lastRow, lastCol)
     .setBorder(true, true, true, true, true, true);
@@ -3958,7 +3972,7 @@ function generateVortexWeeklyReport(sheet, weeklyData) {
  */
 function setupVortexWeeklyHeaders(sheet) {
   // Main header
-  const mainHeader = sheet.getRange('A1:K1');
+  const mainHeader = sheet.getRange('A1:L1');
   mainHeader.merge()
     .setValue('Vortex Study Report - Weekly View')
     .setBackground('#4a90e2')
@@ -3969,7 +3983,7 @@ function setupVortexWeeklyHeaders(sheet) {
 
   // Column headers
   const headers = [
-    'Date', 'Discord Joins', 'Low Ticket Buys', 'Booked Triage', 'Partial Triage',
+    'Date', 'Discord Joins', 'Low Ticket Buys', 'Conversion Rate', 'Booked Triage', 'Partial Triage',
     'Total Triage Calls', 'Booked Closing Call', 'Shown Calls', 'Closes', 'New Cash', 'FU Cash'
   ];
   const headerRange = sheet.getRange(2, 1, 1, headers.length);
@@ -3998,6 +4012,7 @@ function populateVortexWeeklyData(sheet, row, weekData, previousWeekData = null)
   const closes = weekData.closes || 0;
   const newCash = weekData.newCash || 0;
   const fuCash = weekData.fuCash || 0;
+  const conversionRate = discordJoins > 0 ? `${Math.round((lowTicketBuys / discordJoins) * 100)}%` : '0%';
 
   const formattedDiscordJoins = discordJoins > 0 ? discordJoins.toLocaleString() : discordJoins;
   const formattedlowTicketBuys = lowTicketBuys > 0 ? lowTicketBuys.toLocaleString() : lowTicketBuys;
@@ -4009,6 +4024,7 @@ function populateVortexWeeklyData(sheet, row, weekData, previousWeekData = null)
     formattedDate,
     formattedDiscordJoins,
     formattedlowTicketBuys,
+    conversionRate,
     formattedbookedTriage,
     formattedpartialTriage,
     formattedtotalTriageCalls,
@@ -4023,10 +4039,14 @@ function populateVortexWeeklyData(sheet, row, weekData, previousWeekData = null)
   sheet.getRange(row, 1, 1, rowData.length).setValues([rowData]);
 
   if (previousWeekData) {
-    const currentValues = [discordJoins, lowTicketBuys, bookedTriage, partialTriage, totalTriageCalls, bookedClosingCall, shownCalls, closes, newCash, fuCash];
+    const prevConversionRate = previousWeekData.discordJoins > 0 ? (previousWeekData.lowTicketBuys / previousWeekData.discordJoins) * 100 : 0;
+    const currConversionRate = discordJoins > 0 ? (lowTicketBuys / discordJoins) * 100 : 0;
+    
+    const currentValues = [discordJoins, lowTicketBuys, currConversionRate, bookedTriage, partialTriage, totalTriageCalls, bookedClosingCall, shownCalls, closes, newCash, fuCash];
     const previousValues = [
       previousWeekData.discordJoins || 0,
       previousWeekData.lowTicketBuys || 0,
+      prevConversionRate,
       previousWeekData.bookedTriage || 0,
       previousWeekData.partialTriage || 0,
       previousWeekData.totalTriageCalls || 0,
@@ -4037,8 +4057,8 @@ function populateVortexWeeklyData(sheet, row, weekData, previousWeekData = null)
       previousWeekData.fuCash || 0
     ];
 
-    // Apply formatting to columns 2-10 (skip date column)
-    for (let col = 2; col <= 11; col++) {
+    // Apply formatting to columns 2-12 (skip date column)
+    for (let col = 2; col <= 12; col++) {
       const currentValue = currentValues[col - 2];
       const previousValue = previousValues[col - 2];
 
@@ -4070,14 +4090,15 @@ function formatVortexWeeklySheet(sheet) {
   sheet.setColumnWidth(1, 160);  // Date column (wider for date range)
   sheet.setColumnWidth(2, 120);  // Discord Joins
   sheet.setColumnWidth(3, 130);  // Low Ticket Buys
-  sheet.setColumnWidth(4, 120);  // Booked Triage
-  sheet.setColumnWidth(5, 120);  // Partial Triage
-  sheet.setColumnWidth(6, 140);  // Total Triage Calls
-  sheet.setColumnWidth(7, 150);  // Booked Closing Call
-  sheet.setColumnWidth(8, 110);  // Shown Calls
-  sheet.setColumnWidth(9, 80);   // Closes
-  sheet.setColumnWidth(10, 120); // New Cash
-  sheet.setColumnWidth(11, 100); // FU Cash
+  sheet.setColumnWidth(4, 130);  // Conversion Rate
+  sheet.setColumnWidth(5, 120);  // Booked Triage
+  sheet.setColumnWidth(6, 120);  // Partial Triage
+  sheet.setColumnWidth(7, 140);  // Total Triage Calls
+  sheet.setColumnWidth(8, 150);  // Booked Closing Call
+  sheet.setColumnWidth(9, 110);  // Shown Calls
+  sheet.setColumnWidth(10, 80);   // Closes
+  sheet.setColumnWidth(11, 120); // New Cash
+  sheet.setColumnWidth(12, 100); // FU Cash
 
   sheet.getRange(1, 1, lastRow, lastCol)
     .setBorder(true, true, true, true, true, true);
