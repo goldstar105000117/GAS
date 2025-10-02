@@ -7,8 +7,11 @@ const CONFIG = {
   SETS_TAB_NAME: 'Post Call Reports',
   SETTERS: [
     'Alan Kamuramira',
+    'Angel Flores',
     'Brandon Parker',
     'Christopher Wallace',
+    'Ethen Kaswell',
+    'Jayson Pablo',
     'Liam Burgoyne',
     'Noah Sluder'
   ],
@@ -733,8 +736,8 @@ function generateReport(sheet, data) {
   let currentRow = 3;
 
   periods.forEach((period, index) => {
-    populatePeriodData(sheet, currentRow, periodLabels[index], period, data);
-    currentRow += 6; // 5 setters + 1 team row
+    populatePeriodData(sheet, currentRow, periodLabels[index], period, data, CONFIG.SETTERS.length + 1);
+    currentRow += CONFIG.SETTERS.length + 1;
   });
 
   formatSheet(sheet);
@@ -753,7 +756,7 @@ function generateSetterGroupedReport(sheet, data, allTimeData) {
   // Process each setter
   CONFIG.SETTERS.forEach((setter, setterIndex) => {
     populateSetterGroupedData(sheet, currentRow, setter, periods, periodLabels, data, allTimeData);
-    currentRow += 5; // 3 periods + 1 total row + 1 spacing
+    currentRow += periods.length + 1 + 1;
   });
 
   // Add team totals section
@@ -864,9 +867,9 @@ function applyConditionalFormatting(sheet, row, dccValue, showValue, closeValue)
 /**
  * Populate data for a specific time period (BY DAYS)
  */
-function populatePeriodData(sheet, startRow, periodLabel, period, data) {
+function populatePeriodData(sheet, startRow, periodLabel, period, data, length) {
   // Period label
-  sheet.getRange(startRow, 1, 6, 1)
+  sheet.getRange(startRow, 1, length, 1)
     .merge()
     .setValue(periodLabel)
     .setBackground('#9fc5e8')
@@ -1607,8 +1610,8 @@ function generateCloserReport(sheet, data) {
   let currentRow = 3;
 
   periods.forEach((period, index) => {
-    populateCloserPeriodData(sheet, currentRow, periodLabels[index], period, data);
-    currentRow += 5; // 3 closers + 1 team row + 1 spacing
+    populateCloserPeriodData(sheet, currentRow, periodLabels[index], period, data, CLOSER_CONFIG.CLOSERS.length + 1);
+    currentRow += CLOSER_CONFIG.CLOSERS.length + 1;
   });
 
   formatCloserSheet(sheet);
@@ -1662,9 +1665,9 @@ function applyCloserConditionalFormatting(sheet, row, closeRateValue, collectedP
 /**
  * Populate data for a specific time period (Closer Study)
  */
-function populateCloserPeriodData(sheet, startRow, periodLabel, period, data) {
+function populateCloserPeriodData(sheet, startRow, periodLabel, period, data, length) {
   // Period label
-  sheet.getRange(startRow, 1, 4, 1)
+  sheet.getRange(startRow, 1, length, 1)
     .merge()
     .setValue(periodLabel)
     .setBackground('#9fc5e8')
@@ -2108,7 +2111,7 @@ function generateCloserGroupedReport(sheet, data, allTimeData) {
   // Process each closer
   CLOSER_CONFIG.CLOSERS.forEach((closer, closerIndex) => {
     populateCloserGroupedData(sheet, currentRow, closer, periods, periodLabels, data, allTimeData);
-    currentRow += 5; // 3 periods + 1 total row + 1 spacing
+    currentRow += periods.length + 1 + 1;
   });
 
   // Add team totals section
