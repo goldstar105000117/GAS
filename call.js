@@ -33,7 +33,10 @@ function updateDailyDash() {
           noShowRespondedFirst: 0,
           noShowRespondedMorning: 0,
           showedRespondedFirst: 0,
-          showedRespondedMorning: 0
+          showedRespondedMorning: 0,
+          totalCalls: 0,
+          rescheduled: 0,
+          canceled: 0
         };
       }
 
@@ -70,6 +73,19 @@ function updateDailyDash() {
       // Column Q is "yes" AND Column V contains won-, lost-, marker-, or followup
       if (columnQ === "yes" && isShowedStatus) {
         dateStats[dateStr].showedRespondedMorning++;
+      }
+
+      // Count total calls for the day (every row with this date)
+      dateStats[dateStr].totalCalls++;
+
+      // Count Rescheduled (Column V includes "rescheduled")
+      if (columnV.includes("rescheduled")) {
+        dateStats[dateStr].rescheduled++;
+      }
+
+      // Count Canceled (Column V includes "cancelled" or "canceled")
+      if (columnV.includes("cancelled") || columnV.includes("canceled")) {
+        dateStats[dateStr].canceled++;
       }
 
     } catch (e) {
@@ -118,9 +134,9 @@ function updateDailyDash() {
       stats.noShowRespondedMorning,    // No Shows - Responded to Morning Text
       stats.showedRespondedFirst,      // Showed Calls - Responded to 1st Text
       stats.showedRespondedMorning,    // Showed Calls - Responded to Morning Text
-      0,  // Total Calls for the Day
-      0,  // Rescheduled
-      0   // Canceled
+      stats.totalCalls,                // Total Calls for the Day
+      stats.rescheduled,               // Rescheduled
+      stats.canceled                   // Canceled
     ]);
   });
 
