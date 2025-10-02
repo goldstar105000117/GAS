@@ -1,43 +1,85 @@
 function updateDailyDash() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const leadSheet = ss.getSheetByName('Lead Entered');
-  const dashSheet = ss.getSheetByName('Daily Dash');
+  const sourceSheet = ss.getSheetByName("Lead Entered");
+  const targetSheet = ss.getSheetByName("Daily Dash");
 
-  // Get all data from Lead Entered tab
-  const leadData = leadSheet.getDataRange().getValues();
-  const headers = leadData[0];
+  // Adjust column index for "Date Of Meeting"
+  const dateColIndex = 3;  // Example: column C
 
-  // Find the column index for "Date Of Meeting"
-  const dateColIndex = headers.indexOf('Date Of Meeting');
+  // Get data
+  const data = sourceSheet.getDataRange().getValues();
 
-  if (dateColIndex === -1) {
-    SpreadsheetApp.getUi().alert('Error: "Date Of Meeting" column not found in Lead Entered sheet');
-    return;
-  }
+  // Map of date -> counts
+  const results = {};
 
-  // Prepare output data with headers
-  const outputData = [headers];
+  data.forEach(row => {
+    const dateValue = row[dateColIndex - 1];
+    if (!dateValue) return;
 
-  // Loop through data rows (skip header row)
-  for (let i = 1; i < leadData.length; i++) {
-    const row = leadData[i];
-    const dateValue = row[dateColIndex];
+    const dateStr = Utilities.formatDate(new Date(dateValue), Session.getScriptTimeZone(), "M/d/yyyy");
 
-    // Check if date exists and is valid
-    if (dateValue && dateValue !== '') {
-      outputData.push(row);
+    if (!results[dateStr]) {
+      results[dateStr] = {
+        noShows: {
+          respondedFirstText: 0,
+          respondedMorningText: 0
+        },
+        showedCalls: {
+          respondedFirstText: 0,
+          respondedMorningText: 0
+        },
+        total: {
+          totalCalls: 0,
+          rescheduled: 0,
+          canceled: 0
+        }
+      };
     }
-  }
 
-  // Clear existing data in Daily Dash (except headers if you want to keep formatting)
-  dashSheet.clear();
+    // Placeholder: increment total calls for now
+    results[dateStr].total.totalCalls++;
+  });
 
-  // Write data to Daily Dash
-  if (outputData.length > 0) {
-    dashSheet.getRange(1, 1, outputData.length, outputData[0].length).setValues(outputData);
-  }
+  // Clear target sheet
+  targetSheet.clear();
 
-  SpreadsheetApp.getUi().alert('Daily Dash updated successfully with ' + (outputData.length - 1) + ' records!');
+  // Create two header rows
+  const headerRow1 = ["Date", "No Shows", "No Shows", "Showed Calls", "Showed Calls", "Total", "Total", "Total"];
+  const headerRow2 = ["", "Responded to 1st Text", "Responded to Morning Text", "Responded to 1st Text", "Responded to Morning Text", "Total Calls for the Day", "Rescheduled", "Canceled"];
+
+  targetSheet.appendRow(headerRow1);
+  targetSheet.appendRow(headerRow2);
+
+  // Merge parent headers
+  targetSheet.getRange(1, 1, 2, 1).merge(); // Merge "Date" across 2 rows
+  targetSheet.getRange(1, 2, 1, 2).merge(); // No Shows
+  targetSheet.getRange(1, 4, 1, 2).merge(); // Showed Calls
+  targetSheet.getRange(1, 6, 1, 3).merge(); // Total
+
+  // Center-align first row (parent headers)
+  targetSheet.getRange(1, 1, 2, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
+  targetSheet.getRange(1, 1, 1, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
+  targetSheet.getRange(2, 1, 1, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
+
+  const columnWidths = [100, 150, 180, 150, 180, 150, 110, 100];
+  columnWidths.forEach((width, i) => {
+    targetSheet.setColumnWidth(i + 1, width);
+  });
+
+  // Write data rows starting from row 3
+  Object.keys(results).sort((a, b) => new Date(a) - new Date(b)).forEach(date => {
+    const r = results[date];
+    targetSheet.appendRow([
+      date,
+      r.noShows.respondedFirstText,
+      r.noShows.respondedMorningText,
+      r.showedCalls.respondedFirstText,
+      r.showedCalls.respondedMorningText,
+      r.total.totalCalls,
+      r.total.rescheduled,
+      r.total.canceled
+    ]);
+  });
 }
 
 // Optional: Add a menu to run the script easily
