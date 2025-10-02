@@ -32,9 +32,13 @@ function generateClippingStats() {
   headerRange.setFontColor("#ffffff");
   headerRange.setHorizontalAlignment("center");
 
-  for (let i = 1; i <= headers.length; i++) {
-    sheet.autoResizeColumn(i);
-  }
+  // Set column widths
+  sheet.setColumnWidth(1, 150);  // Month
+  sheet.setColumnWidth(2, 180);  // Total Clipping Spend
+  sheet.setColumnWidth(3, 180);  // Total Clipping Views
+  sheet.setColumnWidth(4, 200);  // New Low Ticket Revenue
+  sheet.setColumnWidth(5, 200);  // New High Ticket Revenue
+  sheet.setColumnWidth(6, 100);  // ROAs
 
   // Fetch Low Ticket Revenue data
   const lowTicketSpreadsheetId = '1fZwddCvFHV1e3yuP_BjEctZHlE5Q6GC5yBrBGDHjT2U';
@@ -150,7 +154,7 @@ function generateClippingStats() {
       '',                           // Total Clipping Views (to be filled manually)
       lowTicketRev,                 // New Low Ticket Revenue
       highTicketRev,                // New High Ticket Revenue
-      ''                            // ROAs (to be calculated)
+      ''                            // ROAs (formula will be added)
     ]);
   }
 
@@ -161,6 +165,16 @@ function generateClippingStats() {
     // Format revenue columns as currency
     sheet.getRange(2, 4, dataRows.length, 1).setNumberFormat('$#,##0.00'); // Low Ticket
     sheet.getRange(2, 5, dataRows.length, 1).setNumberFormat('$#,##0.00'); // High Ticket
+
+    // Add ROAs formulas (Column F = (D + E) / B)
+    for (let i = 0; i < dataRows.length; i++) {
+      const rowNum = i + 2;
+      const formula = `=IF(B${rowNum}=0,"",IF(B${rowNum}="","",(D${rowNum}+E${rowNum})/B${rowNum}))`;
+      sheet.getRange(rowNum, 6).setFormula(formula);
+    }
+
+    // Format ROAs column as number with 2 decimal places
+    sheet.getRange(2, 6, dataRows.length, 1).setNumberFormat('0.00');
   }
 
   SpreadsheetApp.getUi().alert(`Clipping Stats generated successfully!\n\nFound ${dataRows.length} months of data.`);
