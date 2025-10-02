@@ -18,7 +18,7 @@ function updateDailyDash() {
   // Process data starting from row 2 (skip header)
   for (let i = 1; i < data.length; i++) {
     const dateValue = data[i][dateColIndex];
-    
+
     // Skip empty dates
     if (!dateValue) continue;
 
@@ -26,7 +26,7 @@ function updateDailyDash() {
       // Convert to date and format consistently
       const date = new Date(dateValue);
       const dateStr = Utilities.formatDate(date, Session.getScriptTimeZone(), "M/d/yyyy");
-      
+
       // Initialize date stats if not exists
       if (!dateStats[dateStr]) {
         dateStats[dateStr] = {
@@ -46,10 +46,10 @@ function updateDailyDash() {
       const columnV = String(data[i][columnV_Index]).replace(/\s+/g, '').toLowerCase();
 
       // Check if status is a "showed" status (contains won-, lost-, marker-, or followup)
-      const isShowedStatus = columnV.includes("won-") || 
-                            columnV.includes("lost-") || 
-                            columnV.includes("marker-") || 
-                            columnV.includes("followup");
+      const isShowedStatus = columnV.includes("won-") ||
+        columnV.includes("lost-") ||
+        columnV.includes("marker-") ||
+        columnV.includes("followup");
 
       // Check for No Show - Responded to 1st Text
       // Column F is "yes" AND Column V is "noshow"
@@ -146,9 +146,169 @@ function updateDailyDash() {
   }
 }
 
+function updateWeeklyDash() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sourceSheet = ss.getSheetByName("Lead Entered");
+  const targetSheet = ss.getSheetByName("Weekly Dash");
+
+  // Column indices (0-based)
+  const dateColIndex = 0;  // Column A - Date Of Meeting
+  const columnF_Index = 5;  // Column F - Responded to 1st Text
+  const columnQ_Index = 16; // Column Q - Responded to Morning Text
+  const columnV_Index = 21; // Column V - Status
+
+  // Get all data from source sheet
+  const data = sourceSheet.getDataRange().getValues();
+
+  // Object to store counts by week
+  const weekStats = {};
+
+  // Process data starting from row 2 (skip header)
+  for (let i = 1; i < data.length; i++) {
+    const dateValue = data[i][dateColIndex];
+
+    // Skip empty dates
+    if (!dateValue) continue;
+
+    try {
+      // Convert to date
+      const date = new Date(dateValue);
+
+      // Get the week start date (Sunday)
+      const weekStart = new Date(date);
+      const dayOfWeek = weekStart.getDay();
+      weekStart.setDate(weekStart.getDate() - dayOfWeek);
+      weekStart.setHours(0, 0, 0, 0);
+
+      // Get week end date (Saturday)
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      // Format week as "MM/DD/YYYY - MM/DD/YYYY"
+      const weekStartStr = Utilities.formatDate(weekStart, Session.getScriptTimeZone(), "M/d/yyyy");
+      const weekEndStr = Utilities.formatDate(weekEnd, Session.getScriptTimeZone(), "M/d/yyyy");
+      const weekKey = weekStartStr + " - " + weekEndStr;
+
+      // Initialize week stats if not exists
+      if (!weekStats[weekKey]) {
+        weekStats[weekKey] = {
+          weekStart: weekStart,
+          noShowRespondedFirst: 0,
+          noShowRespondedMorning: 0,
+          showedRespondedFirst: 0,
+          showedRespondedMorning: 0,
+          totalCalls: 0,
+          rescheduled: 0,
+          canceled: 0
+        };
+      }
+
+      // Get column values
+      const columnF = String(data[i][columnF_Index]).toLowerCase().trim();
+      const columnQ = String(data[i][columnQ_Index]).toLowerCase().trim();
+      const columnV = String(data[i][columnV_Index]).replace(/\s+/g, '').toLowerCase();
+
+      // Check if status is a "showed" status (contains won-, lost-, marker-, or followup)
+      const isShowedStatus = columnV.includes("won-") ||
+        columnV.includes("lost-") ||
+        columnV.includes("marker-") ||
+        columnV.includes("followup");
+
+      // Check for No Show - Responded to 1st Text
+      if (columnF === "yes" && columnV === "noshow") {
+        weekStats[weekKey].noShowRespondedFirst++;
+      }
+
+      // Check for No Show - Responded to Morning Text
+      if (columnQ === "yes" && columnV === "noshow") {
+        weekStats[weekKey].noShowRespondedMorning++;
+      }
+
+      // Check for Showed Calls - Responded to 1st Text
+      if (columnF === "yes" && isShowedStatus) {
+        weekStats[weekKey].showedRespondedFirst++;
+      }
+
+      // Check for Showed Calls - Responded to Morning Text
+      if (columnQ === "yes" && isShowedStatus) {
+        weekStats[weekKey].showedRespondedMorning++;
+      }
+
+      // Count total calls for the week
+      weekStats[weekKey].totalCalls++;
+
+      // Count Rescheduled
+      if (columnV.includes("rescheduled")) {
+        weekStats[weekKey].rescheduled++;
+      }
+
+      // Count Canceled
+      if (columnV.includes("cancelled") || columnV.includes("canceled")) {
+        weekStats[weekKey].canceled++;
+      }
+
+    } catch (e) {
+      // Skip invalid dates
+      continue;
+    }
+  }
+
+  // Sort weeks by start date
+  const sortedWeeks = Object.keys(weekStats).sort((a, b) => {
+    return weekStats[a].weekStart - weekStats[b].weekStart;
+  });
+
+  // Clear target sheet
+  targetSheet.clear();
+
+  // Create two header rows
+  const headerRow1 = ["Week", "No Shows", "No Shows", "Showed Calls", "Showed Calls", "Total", "Total", "Total"];
+  const headerRow2 = ["", "Responded to 1st Text", "Responded to Morning Text", "Responded to 1st Text", "Responded to Morning Text", "Total Calls for the Week", "Rescheduled", "Canceled"];
+
+  targetSheet.appendRow(headerRow1);
+  targetSheet.appendRow(headerRow2);
+
+  // Merge parent headers
+  targetSheet.getRange(1, 1, 2, 1).merge(); // Merge "Week" across 2 rows
+  targetSheet.getRange(1, 2, 1, 2).merge(); // No Shows
+  targetSheet.getRange(1, 4, 1, 2).merge(); // Showed Calls
+  targetSheet.getRange(1, 6, 1, 3).merge(); // Total
+
+  // Center-align and style headers
+  targetSheet.getRange(1, 1, 2, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
+  targetSheet.getRange(1, 1, 2, 8).setFontWeight("bold");
+
+  // Set column widths
+  const columnWidths = [200, 150, 180, 150, 180, 150, 110, 100];
+  columnWidths.forEach((width, i) => {
+    targetSheet.setColumnWidth(i + 1, width);
+  });
+
+  // Write data rows starting from row 3
+  sortedWeeks.forEach(weekKey => {
+    const stats = weekStats[weekKey];
+    targetSheet.appendRow([
+      weekKey,
+      stats.noShowRespondedFirst,      // No Shows - Responded to 1st Text
+      stats.noShowRespondedMorning,    // No Shows - Responded to Morning Text
+      stats.showedRespondedFirst,      // Showed Calls - Responded to 1st Text
+      stats.showedRespondedMorning,    // Showed Calls - Responded to Morning Text
+      stats.totalCalls,                // Total Calls for the Week
+      stats.rescheduled,               // Rescheduled
+      stats.canceled                   // Canceled
+    ]);
+  });
+
+  // Add borders
+  if (sortedWeeks.length > 0) {
+    targetSheet.getRange(1, 1, sortedWeeks.length + 2, 8).setBorder(true, true, true, true, true, true);
+  }
+}
+
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('Daily Dash Tools')
     .addItem('Update Daily Dash', 'updateDailyDash')
+    .addItem('Update Weekly Dash', 'updateWeeklyDash')
     .addToUi();
 }
