@@ -4,40 +4,34 @@ function updateDailyDash() {
   const targetSheet = ss.getSheetByName("Daily Dash");
 
   // Adjust column index for "Date Of Meeting"
-  const dateColIndex = 3;  // Example: column C
+  const dateColIndex = 1;  // Column A
 
-  // Get data
+  // Get all data from source sheet
   const data = sourceSheet.getDataRange().getValues();
 
-  // Map of date -> counts
-  const results = {};
+  // Skip header row and collect all unique dates
+  const uniqueDates = new Set();
 
-  data.forEach(row => {
-    const dateValue = row[dateColIndex - 1];
-    if (!dateValue) return;
+  for (let i = 1; i < data.length; i++) {
+    const dateValue = data[i][dateColIndex - 1];
 
-    const dateStr = Utilities.formatDate(new Date(dateValue), Session.getScriptTimeZone(), "M/d/yyyy");
+    // Skip empty dates
+    if (!dateValue) continue;
 
-    if (!results[dateStr]) {
-      results[dateStr] = {
-        noShows: {
-          respondedFirstText: 0,
-          respondedMorningText: 0
-        },
-        showedCalls: {
-          respondedFirstText: 0,
-          respondedMorningText: 0
-        },
-        total: {
-          totalCalls: 0,
-          rescheduled: 0,
-          canceled: 0
-        }
-      };
+    try {
+      // Convert to date and format consistently
+      const date = new Date(dateValue);
+      const dateStr = Utilities.formatDate(date, Session.getScriptTimeZone(), "M/d/yyyy");
+      uniqueDates.add(dateStr);
+    } catch (e) {
+      // Skip invalid dates
+      continue;
     }
+  }
 
-    // Placeholder: increment total calls for now
-    results[dateStr].total.totalCalls++;
+  // Convert Set to Array and sort by date
+  const sortedDates = Array.from(uniqueDates).sort((a, b) => {
+    return new Date(a) - new Date(b);
   });
 
   // Clear target sheet
@@ -56,33 +50,36 @@ function updateDailyDash() {
   targetSheet.getRange(1, 4, 1, 2).merge(); // Showed Calls
   targetSheet.getRange(1, 6, 1, 3).merge(); // Total
 
-  // Center-align first row (parent headers)
+  // Center-align and style headers
   targetSheet.getRange(1, 1, 2, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
-  targetSheet.getRange(1, 1, 1, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
-  targetSheet.getRange(2, 1, 1, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
+  targetSheet.getRange(1, 1, 2, 8).setFontWeight("bold");
 
+  // Set column widths
   const columnWidths = [100, 150, 180, 150, 180, 150, 110, 100];
   columnWidths.forEach((width, i) => {
     targetSheet.setColumnWidth(i + 1, width);
   });
 
   // Write data rows starting from row 3
-  Object.keys(results).sort((a, b) => new Date(a) - new Date(b)).forEach(date => {
-    const r = results[date];
+  // All values are 0 for now
+  sortedDates.forEach(date => {
     targetSheet.appendRow([
       date,
-      r.noShows.respondedFirstText,
-      r.noShows.respondedMorningText,
-      r.showedCalls.respondedFirstText,
-      r.showedCalls.respondedMorningText,
-      r.total.totalCalls,
-      r.total.rescheduled,
-      r.total.canceled
+      0,  // No Shows - Responded to 1st Text
+      0,  // No Shows - Responded to Morning Text
+      0,  // Showed Calls - Responded to 1st Text
+      0,  // Showed Calls - Responded to Morning Text
+      0,  // Total Calls for the Day
+      0,  // Rescheduled
+      0   // Canceled
     ]);
   });
+
+  if (sortedDates.length > 0) {
+    targetSheet.getRange(1, 1, sortedDates.length + 2, 8).setBorder(true, true, true, true, true, true);
+  }
 }
 
-// Optional: Add a menu to run the script easily
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('Daily Dash Tools')
