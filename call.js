@@ -98,18 +98,55 @@ function updateDailyDash() {
     targetSheet.setColumnWidth(i + 1, width);
   });
 
-  sortedDates.forEach(date => {
+  let previousStats = null;
+
+  sortedDates.forEach((date, index) => {
     const stats = dateStats[date];
-    targetSheet.appendRow([
+    const rowData = [
       date,
-      stats.noShowRespondedFirst,      // No Shows - Responded to 1st Text
-      stats.noShowRespondedMorning,    // No Shows - Responded to Morning Text
-      stats.showedRespondedFirst,      // Showed Calls - Responded to 1st Text
-      stats.showedRespondedMorning,    // Showed Calls - Responded to Morning Text
-      stats.totalCalls,                // Total Calls for the Day
-      stats.rescheduled,               // Rescheduled
-      stats.canceled                   // Canceled
-    ]);
+      stats.noShowRespondedFirst,
+      stats.noShowRespondedMorning,
+      stats.showedRespondedFirst,
+      stats.showedRespondedMorning,
+      stats.totalCalls,
+      stats.rescheduled,
+      stats.canceled
+    ];
+
+    targetSheet.appendRow(rowData);
+
+    if (index > 0 && previousStats) {
+      const currentRow = index + 3;
+
+      for (let col = 2; col <= 8; col++) {
+        const currentValue = rowData[col - 1];
+        const previousValue = col === 2 ? previousStats.noShowRespondedFirst :
+          col === 3 ? previousStats.noShowRespondedMorning :
+            col === 4 ? previousStats.showedRespondedFirst :
+              col === 5 ? previousStats.showedRespondedMorning :
+                col === 6 ? previousStats.totalCalls :
+                  col === 7 ? previousStats.rescheduled :
+                    previousStats.canceled;
+
+        let color;
+        if (currentValue > previousValue) {
+          color = '#90EE90'; // Light green
+        } else if (currentValue === previousValue) {
+          color = '#FFFF99'; // Light yellow
+        } else {
+          color = '#FFB6C1'; // Light red
+        }
+
+        targetSheet.getRange(currentRow, col).setBackground(color);
+      }
+    } else if (index === 0) {
+      const currentRow = 3;
+      for (let col = 2; col <= 8; col++) {
+        targetSheet.getRange(currentRow, col).setBackground('#FFFFFF');
+      }
+    }
+
+    previousStats = stats;
   });
 
   if (sortedDates.length > 0) {
@@ -228,18 +265,55 @@ function updateWeeklyDash() {
     targetSheet.setColumnWidth(i + 1, width);
   });
 
-  sortedWeeks.forEach(weekKey => {
+  let previousStats = null;
+
+  sortedWeeks.forEach((weekKey, index) => {
     const stats = weekStats[weekKey];
-    targetSheet.appendRow([
+    const rowData = [
       weekKey,
-      stats.noShowRespondedFirst,      // No Shows - Responded to 1st Text
-      stats.noShowRespondedMorning,    // No Shows - Responded to Morning Text
-      stats.showedRespondedFirst,      // Showed Calls - Responded to 1st Text
-      stats.showedRespondedMorning,    // Showed Calls - Responded to Morning Text
-      stats.totalCalls,                // Total Calls for the Week
-      stats.rescheduled,               // Rescheduled
-      stats.canceled                   // Canceled
-    ]);
+      stats.noShowRespondedFirst,
+      stats.noShowRespondedMorning,
+      stats.showedRespondedFirst,
+      stats.showedRespondedMorning,
+      stats.totalCalls,
+      stats.rescheduled,
+      stats.canceled
+    ];
+
+    targetSheet.appendRow(rowData);
+
+    if (index > 0 && previousStats) {
+      const currentRow = index + 3;
+
+      for (let col = 2; col <= 8; col++) {
+        const currentValue = rowData[col - 1];
+        const previousValue = col === 2 ? previousStats.noShowRespondedFirst :
+          col === 3 ? previousStats.noShowRespondedMorning :
+            col === 4 ? previousStats.showedRespondedFirst :
+              col === 5 ? previousStats.showedRespondedMorning :
+                col === 6 ? previousStats.totalCalls :
+                  col === 7 ? previousStats.rescheduled :
+                    previousStats.canceled;
+
+        let color;
+        if (currentValue > previousValue) {
+          color = '#90EE90'; // Light green
+        } else if (currentValue === previousValue) {
+          color = '#FFFF99'; // Light yellow
+        } else {
+          color = '#FFB6C1'; // Light red
+        }
+
+        targetSheet.getRange(currentRow, col).setBackground(color);
+      }
+    } else if (index === 0) {
+      const currentRow = 3;
+      for (let col = 2; col <= 8; col++) {
+        targetSheet.getRange(currentRow, col).setBackground('#FFFFFF');
+      }
+    }
+
+    previousStats = stats;
   });
 
   if (sortedWeeks.length > 0) {
@@ -350,18 +424,55 @@ function updateMonthlyDash() {
     targetSheet.setColumnWidth(i + 1, width);
   });
 
-  sortedMonths.forEach(monthKey => {
+  let previousStats = null;
+
+  sortedMonths.forEach((monthKey, index) => {
     const stats = monthStats[monthKey];
-    targetSheet.appendRow([
+    const rowData = [
       monthKey,
-      stats.noShowRespondedFirst,      // No Shows - Responded to 1st Text
-      stats.noShowRespondedMorning,    // No Shows - Responded to Morning Text
-      stats.showedRespondedFirst,      // Showed Calls - Responded to 1st Text
-      stats.showedRespondedMorning,    // Showed Calls - Responded to Morning Text
-      stats.totalCalls,                // Total Calls for the Month
-      stats.rescheduled,               // Rescheduled
-      stats.canceled                   // Canceled
-    ]);
+      stats.noShowRespondedFirst,
+      stats.noShowRespondedMorning,
+      stats.showedRespondedFirst,
+      stats.showedRespondedMorning,
+      stats.totalCalls,
+      stats.rescheduled,
+      stats.canceled
+    ];
+
+    targetSheet.appendRow(rowData);
+
+    if (index > 0 && previousStats) {
+      const currentRow = index + 3;
+
+      for (let col = 2; col <= 8; col++) {
+        const currentValue = rowData[col - 1];
+        const previousValue = col === 2 ? previousStats.noShowRespondedFirst :
+          col === 3 ? previousStats.noShowRespondedMorning :
+            col === 4 ? previousStats.showedRespondedFirst :
+              col === 5 ? previousStats.showedRespondedMorning :
+                col === 6 ? previousStats.totalCalls :
+                  col === 7 ? previousStats.rescheduled :
+                    previousStats.canceled;
+
+        let color;
+        if (currentValue > previousValue) {
+          color = '#90EE90'; // Light green
+        } else if (currentValue === previousValue) {
+          color = '#FFFF99'; // Light yellow
+        } else {
+          color = '#FFB6C1'; // Light red
+        }
+
+        targetSheet.getRange(currentRow, col).setBackground(color);
+      }
+    } else if (index === 0) {
+      const currentRow = 3;
+      for (let col = 2; col <= 8; col++) {
+        targetSheet.getRange(currentRow, col).setBackground('#FFFFFF');
+      }
+    }
+
+    previousStats = stats;
   });
 
   if (sortedMonths.length > 0) {
