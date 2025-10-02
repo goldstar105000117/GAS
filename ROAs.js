@@ -138,7 +138,25 @@ function generateClippingStats() {
   ]);
 
   const sortedMonths = Array.from(allMonthKeys).sort();
-  const dataRows = [];
+
+  // Read existing data from columns B and C to preserve manual entries
+  const existingDataRange = sheet.getRange(2, 1, sheet.getLastRow() > 1 ? sheet.getLastRow() - 1 : 1, 3);
+  const existingData = sheet.getLastRow() > 1 ? existingDataRange.getValues() : [];
+
+  // Create a map of existing manual entries by month name
+  const existingManualData = {};
+  for (let i = 0; i < existingData.length; i++) {
+    const monthName = existingData[i][0];
+    if (monthName) {
+      existingManualData[monthName] = {
+        clippingSpend: existingData[i][1],
+        clippingViews: existingData[i][2]
+      };
+    }
+  }
+
+  const monthRows = [];
+  const revenueRows = [];
 
   for (const monthKey of sortedMonths) {
     const [year, month] = monthKey.split('-');
@@ -148,36 +166,48 @@ function generateClippingStats() {
     const lowTicketRev = lowTicketMonthlyRevenue[monthKey] || 0;
     const highTicketRev = highTicketMonthlyRevenue[monthKey] || 0;
 
-    dataRows.push([
-      monthName,                    // Month
-      '',                           // Total Clipping Spend (to be filled manually)
-      '',                           // Total Clipping Views (to be filled manually)
-      lowTicketRev,                 // New Low Ticket Revenue
-      highTicketRev,                // New High Ticket Revenue
-      ''                            // ROAs (formula will be added)
-    ]);
+    monthRows.push([monthName]);
+    revenueRows.push([lowTicketRev, highTicketRev]);
   }
 
   // Write data to sheet
-  if (dataRows.length > 0) {
-    sheet.getRange(2, 1, dataRows.length, 6).setValues(dataRows);
+  if (monthRows.length > 0) {
+    // Write month names (Column A)
+    sheet.getRange(2, 1, monthRows.length, 1).setValues(monthRows);
+
+    // Write revenue data (Columns D and E only)
+    sheet.getRange(2, 4, revenueRows.length, 2).setValues(revenueRows);
+
+    // Now restore the manual entries for columns B and C
+    for (let i = 0; i < monthRows.length; i++) {
+      const monthName = monthRows[i][0];
+      const rowNum = i + 2;
+
+      if (existingManualData[monthName]) {
+        // Restore existing manual entries
+        if (existingManualData[monthName].clippingSpend !== '' && existingManualData[monthName].clippingSpend !== null) {
+          sheet.getRange(rowNum, 2).setValue(existingManualData[monthName].clippingSpend);
+        }
+        if (existingManualData[monthName].clippingViews !== '' && existingManualData[monthName].clippingViews !== null) {
+          sheet.getRange(rowNum, 3).setValue(existingManualData[monthName].clippingViews);
+        }
+      }
+    }
 
     // Format revenue columns as currency
-    sheet.getRange(2, 4, dataRows.length, 1).setNumberFormat('$#,##0.00'); // Low Ticket
-    sheet.getRange(2, 5, dataRows.length, 1).setNumberFormat('$#,##0.00'); // High Ticket
+    sheet.getRange(2, 4, revenueRows.length, 1).setNumberFormat('$#,##0.00'); // Low Ticket
+    sheet.getRange(2, 5, revenueRows.length, 1).setNumberFormat('$#,##0.00'); // High Ticket
 
     // Add ROAs formulas (Column F = (D + E) / B)
-    for (let i = 0; i < dataRows.length; i++) {
-      const rowNum = i + 2;
+    for (let i = 0; i < monthRows.length; i++) {
+      const rowNum = i + 2; // Start from row 2 (after headers)
       const formula = `=IF(B${rowNum}=0,"",IF(B${rowNum}="","",(D${rowNum}+E${rowNum})/B${rowNum}))`;
       sheet.getRange(rowNum, 6).setFormula(formula);
     }
 
     // Format ROAs column as number with 2 decimal places
-    sheet.getRange(2, 6, dataRows.length, 1).setNumberFormat('0.00');
+    sheet.getRange(2, 6, monthRows.length, 1).setNumberFormat('0.00');
   }
-
-  SpreadsheetApp.getUi().alert(`Clipping Stats generated successfully!\n\nFound ${dataRows.length} months of data.`);
 }
 
 // Helper function to clean and normalize status strings
