@@ -78,22 +78,31 @@ function updateDailyDash() {
 
   targetSheet.clear();
 
-  const headerRow1 = ["Date", "No Shows", "No Shows", "Showed Calls", "Showed Calls", "Total", "Total", "Total"];
-  const headerRow2 = ["", "Responded to 1st Text", "Responded to Morning Text", "Responded to 1st Text", "Responded to Morning Text", "Total Calls for the Day", "Rescheduled", "Canceled"];
+  const headerRow1 = ["Date", "No Shows", "No Shows", "No Shows", "No Shows", "Showed Calls", "Showed Calls", "Showed Calls", "Showed Calls", "Total", "Total", "Total"];
+  const headerRow2 = ["", "Responded to 1st Text", "Responded to 1st Text", "Responded to Morning Text", "Responded to Morning Text", "Responded to 1st Text", "Responded to 1st Text", "Responded to Morning Text", "Responded to Morning Text", "Total Calls for the Day", "Rescheduled", "Canceled"];
+  const headerRow3 = ["", "Total Number", "Percentage", "Total Number", "Percentage", "Total Number", "Percentage", "Total Number", "Percentage", "", "", ""];
 
   targetSheet.appendRow(headerRow1);
   targetSheet.appendRow(headerRow2);
+  targetSheet.appendRow(headerRow3);
 
-  // Merge parent headers
-  targetSheet.getRange(1, 1, 2, 1).merge(); // Merge "Date" across 2 rows
-  targetSheet.getRange(1, 2, 1, 2).merge(); // No Shows
-  targetSheet.getRange(1, 4, 1, 2).merge(); // Showed Calls
-  targetSheet.getRange(1, 6, 1, 3).merge(); // Total
+  targetSheet.getRange(1, 1, 3, 1).merge(); // Merge "Date" across 3 rows
+  targetSheet.getRange(1, 2, 1, 4).merge(); // No Shows (spans 4 columns)
+  targetSheet.getRange(1, 6, 1, 4).merge(); // Showed Calls (spans 4 columns)
+  targetSheet.getRange(1, 10, 1, 3).merge(); // Total (spans 3 columns)
 
-  targetSheet.getRange(1, 1, 2, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
-  targetSheet.getRange(1, 1, 2, 8).setFontWeight("bold");
+  targetSheet.getRange(2, 2, 1, 2).merge(); // No Shows - Responded to 1st Text
+  targetSheet.getRange(2, 4, 1, 2).merge(); // No Shows - Responded to Morning Text
+  targetSheet.getRange(2, 6, 1, 2).merge(); // Showed Calls - Responded to 1st Text
+  targetSheet.getRange(2, 8, 1, 2).merge(); // Showed Calls - Responded to Morning Text
+  targetSheet.getRange(2, 10, 2, 1).merge(); // Total Calls for the Day
+  targetSheet.getRange(2, 11, 2, 1).merge(); // Rescheduled
+  targetSheet.getRange(2, 12, 2, 1).merge(); // Canceled
 
-  const columnWidths = [100, 150, 190, 150, 190, 170, 110, 100];
+  targetSheet.getRange(1, 1, 3, 12).setHorizontalAlignment("center").setVerticalAlignment("middle");
+  targetSheet.getRange(1, 1, 3, 12).setFontWeight("bold");
+
+  const columnWidths = [100, 90, 90, 90, 90, 90, 90, 90, 90, 160, 100, 100];
   columnWidths.forEach((width, i) => {
     targetSheet.setColumnWidth(i + 1, width);
   });
@@ -102,12 +111,22 @@ function updateDailyDash() {
 
   sortedDates.forEach((date, index) => {
     const stats = dateStats[date];
+
+    const noShowFirstPct = stats.totalCalls > 0 ? (stats.noShowRespondedFirst / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+    const noShowMorningPct = stats.totalCalls > 0 ? (stats.noShowRespondedMorning / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+    const showedFirstPct = stats.totalCalls > 0 ? (stats.showedRespondedFirst / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+    const showedMorningPct = stats.totalCalls > 0 ? (stats.showedRespondedMorning / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+
     const rowData = [
       date,
       stats.noShowRespondedFirst,
+      noShowFirstPct,
       stats.noShowRespondedMorning,
+      noShowMorningPct,
       stats.showedRespondedFirst,
+      showedFirstPct,
       stats.showedRespondedMorning,
+      showedMorningPct,
       stats.totalCalls,
       stats.rescheduled,
       stats.canceled
@@ -116,41 +135,72 @@ function updateDailyDash() {
     targetSheet.appendRow(rowData);
 
     if (index > 0 && previousStats) {
-      const currentRow = index + 3;
+      const currentRow = index + 4;
 
-      for (let col = 2; col <= 8; col++) {
-        const currentValue = rowData[col - 1];
+      const columnsToColor = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+      columnsToColor.forEach(col => {
+        const currentValue = col === 2 ? stats.noShowRespondedFirst :
+          col === 3 ? noShowFirstPct :
+            col === 4 ? stats.noShowRespondedMorning :
+              col === 5 ? noShowMorningPct :
+                col === 6 ? stats.showedRespondedFirst :
+                  col === 7 ? showedFirstPct :
+                    col === 8 ? stats.showedRespondedMorning :
+                      col === 9 ? showedMorningPct :
+                        col === 10 ? stats.totalCalls :
+                          col === 11 ? stats.rescheduled :
+                            stats.canceled;
+
         const previousValue = col === 2 ? previousStats.noShowRespondedFirst :
-          col === 3 ? previousStats.noShowRespondedMorning :
-            col === 4 ? previousStats.showedRespondedFirst :
-              col === 5 ? previousStats.showedRespondedMorning :
-                col === 6 ? previousStats.totalCalls :
-                  col === 7 ? previousStats.rescheduled :
-                    previousStats.canceled;
+          col === 3 ? previousStats.noShowFirstPct :
+            col === 4 ? previousStats.noShowRespondedMorning :
+              col === 5 ? previousStats.noShowMorningPct :
+                col === 6 ? previousStats.showedRespondedFirst :
+                  col === 7 ? previousStats.showedFirstPct :
+                    col === 8 ? previousStats.showedRespondedMorning :
+                      col === 9 ? previousStats.showedMorningPct :
+                        col === 10 ? previousStats.totalCalls :
+                          col === 11 ? previousStats.rescheduled :
+                            previousStats.canceled;
 
         let color;
-        if (currentValue > previousValue) {
-          color = '#90EE90'; // Light green
-        } else if (currentValue === previousValue) {
-          color = '#FFFF99'; // Light yellow
+
+        if (String(currentValue).includes("%") || String(previousValue).includes("%")) {
+          const formattedCurrent = parseFloat(String(currentValue).replace("%", ""));
+          const formattedPrevious = parseFloat(String(previousValue).replace("%", ""));
+
+          if (formattedCurrent > formattedPrevious) {
+            color = '#90EE90'; // Light green
+          } else if (formattedCurrent === formattedPrevious) {
+            color = '#FFFF99'; // Light yellow
+          } else {
+            color = '#FFB6C1'; // Light red
+          }
         } else {
-          color = '#FFB6C1'; // Light red
+          if (currentValue > previousValue) {
+            color = '#90EE90'; // Light green
+          } else if (currentValue === previousValue) {
+            color = '#FFFF99'; // Light yellow
+          } else {
+            color = '#FFB6C1'; // Light red
+          }
         }
 
         targetSheet.getRange(currentRow, col).setBackground(color);
-      }
+      });
     } else if (index === 0) {
-      const currentRow = 3;
-      for (let col = 2; col <= 8; col++) {
+      const currentRow = 4;
+      for (let col = 2; col <= 12; col++) {
         targetSheet.getRange(currentRow, col).setBackground('#FFFFFF');
       }
     }
 
-    previousStats = stats;
+    previousStats = { ...stats, noShowFirstPct, noShowMorningPct, showedFirstPct, showedMorningPct };
   });
 
   if (sortedDates.length > 0) {
-    targetSheet.getRange(1, 1, sortedDates.length + 2, 8).setBorder(true, true, true, true, true, true);
+    targetSheet.getRange(1, 1, sortedDates.length + 3, 12).setBorder(true, true, true, true, true, true);
   }
 }
 
@@ -246,21 +296,31 @@ function updateWeeklyDash() {
 
   targetSheet.clear();
 
-  const headerRow1 = ["Week", "No Shows", "No Shows", "Showed Calls", "Showed Calls", "Total", "Total", "Total"];
-  const headerRow2 = ["", "Responded to 1st Text", "Responded to Morning Text", "Responded to 1st Text", "Responded to Morning Text", "Total Calls for the Week", "Rescheduled", "Canceled"];
+  const headerRow1 = ["Week", "No Shows", "No Shows", "No Shows", "No Shows", "Showed Calls", "Showed Calls", "Showed Calls", "Showed Calls", "Total", "Total", "Total"];
+  const headerRow2 = ["", "Responded to 1st Text", "Responded to 1st Text", "Responded to Morning Text", "Responded to Morning Text", "Responded to 1st Text", "Responded to 1st Text", "Responded to Morning Text", "Responded to Morning Text", "Total Calls for the Week", "Rescheduled", "Canceled"];
+  const headerRow3 = ["", "Total Number", "Percentage", "Total Number", "Percentage", "Total Number", "Percentage", "Total Number", "Percentage", "", "", ""];
 
   targetSheet.appendRow(headerRow1);
   targetSheet.appendRow(headerRow2);
+  targetSheet.appendRow(headerRow3);
 
-  targetSheet.getRange(1, 1, 2, 1).merge(); // Merge "Week" across 2 rows
-  targetSheet.getRange(1, 2, 1, 2).merge(); // No Shows
-  targetSheet.getRange(1, 4, 1, 2).merge(); // Showed Calls
-  targetSheet.getRange(1, 6, 1, 3).merge(); // Total
+  targetSheet.getRange(1, 1, 3, 1).merge();
+  targetSheet.getRange(1, 2, 1, 4).merge();
+  targetSheet.getRange(1, 6, 1, 4).merge();
+  targetSheet.getRange(1, 10, 1, 3).merge();
 
-  targetSheet.getRange(1, 1, 2, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
-  targetSheet.getRange(1, 1, 2, 8).setFontWeight("bold");
+  targetSheet.getRange(2, 2, 1, 2).merge();
+  targetSheet.getRange(2, 4, 1, 2).merge();
+  targetSheet.getRange(2, 6, 1, 2).merge();
+  targetSheet.getRange(2, 8, 1, 2).merge();
+  targetSheet.getRange(2, 10, 2, 1).merge();
+  targetSheet.getRange(2, 11, 2, 1).merge();
+  targetSheet.getRange(2, 12, 2, 1).merge();
 
-  const columnWidths = [200, 150, 190, 150, 190, 170, 110, 100];
+  targetSheet.getRange(1, 1, 3, 12).setHorizontalAlignment("center").setVerticalAlignment("middle");
+  targetSheet.getRange(1, 1, 3, 12).setFontWeight("bold");
+
+  const columnWidths = [160, 90, 90, 90, 90, 90, 90, 90, 90, 160, 100, 100];
   columnWidths.forEach((width, i) => {
     targetSheet.setColumnWidth(i + 1, width);
   });
@@ -269,12 +329,22 @@ function updateWeeklyDash() {
 
   sortedWeeks.forEach((weekKey, index) => {
     const stats = weekStats[weekKey];
+
+    const noShowFirstPct = stats.totalCalls > 0 ? (stats.noShowRespondedFirst / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+    const noShowMorningPct = stats.totalCalls > 0 ? (stats.noShowRespondedMorning / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+    const showedFirstPct = stats.totalCalls > 0 ? (stats.showedRespondedFirst / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+    const showedMorningPct = stats.totalCalls > 0 ? (stats.showedRespondedMorning / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+
     const rowData = [
       weekKey,
       stats.noShowRespondedFirst,
+      noShowFirstPct,
       stats.noShowRespondedMorning,
+      noShowMorningPct,
       stats.showedRespondedFirst,
+      showedFirstPct,
       stats.showedRespondedMorning,
+      showedMorningPct,
       stats.totalCalls,
       stats.rescheduled,
       stats.canceled
@@ -283,41 +353,71 @@ function updateWeeklyDash() {
     targetSheet.appendRow(rowData);
 
     if (index > 0 && previousStats) {
-      const currentRow = index + 3;
+      const currentRow = index + 4;
+      const columnsToColor = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-      for (let col = 2; col <= 8; col++) {
-        const currentValue = rowData[col - 1];
+      columnsToColor.forEach(col => {
+        const currentValue = col === 2 ? stats.noShowRespondedFirst :
+          col === 3 ? noShowFirstPct :
+            col === 4 ? stats.noShowRespondedMorning :
+              col === 5 ? noShowMorningPct :
+                col === 6 ? stats.showedRespondedFirst :
+                  col === 7 ? showedFirstPct :
+                    col === 8 ? stats.showedRespondedMorning :
+                      col === 9 ? showedMorningPct :
+                        col === 10 ? stats.totalCalls :
+                          col === 11 ? stats.rescheduled :
+                            stats.canceled;
+
         const previousValue = col === 2 ? previousStats.noShowRespondedFirst :
-          col === 3 ? previousStats.noShowRespondedMorning :
-            col === 4 ? previousStats.showedRespondedFirst :
-              col === 5 ? previousStats.showedRespondedMorning :
-                col === 6 ? previousStats.totalCalls :
-                  col === 7 ? previousStats.rescheduled :
-                    previousStats.canceled;
+          col === 3 ? previousStats.noShowFirstPct :
+            col === 4 ? previousStats.noShowRespondedMorning :
+              col === 5 ? previousStats.noShowMorningPct :
+                col === 6 ? previousStats.showedRespondedFirst :
+                  col === 7 ? previousStats.showedFirstPct :
+                    col === 8 ? previousStats.showedRespondedMorning :
+                      col === 9 ? previousStats.showedMorningPct :
+                        col === 10 ? previousStats.totalCalls :
+                          col === 11 ? previousStats.rescheduled :
+                            previousStats.canceled;
 
         let color;
-        if (currentValue > previousValue) {
-          color = '#90EE90'; // Light green
-        } else if (currentValue === previousValue) {
-          color = '#FFFF99'; // Light yellow
+
+        if (String(currentValue).includes("%") || String(previousValue).includes("%")) {
+          const formattedCurrent = parseFloat(String(currentValue).replace("%", ""));
+          const formattedPrevious = parseFloat(String(previousValue).replace("%", ""));
+
+          if (formattedCurrent > formattedPrevious) {
+            color = '#90EE90'; // Light green
+          } else if (formattedCurrent === formattedPrevious) {
+            color = '#FFFF99'; // Light yellow
+          } else {
+            color = '#FFB6C1'; // Light red
+          }
         } else {
-          color = '#FFB6C1'; // Light red
+          if (currentValue > previousValue) {
+            color = '#90EE90'; // Light green
+          } else if (currentValue === previousValue) {
+            color = '#FFFF99'; // Light yellow
+          } else {
+            color = '#FFB6C1'; // Light red
+          }
         }
 
         targetSheet.getRange(currentRow, col).setBackground(color);
-      }
+      });
     } else if (index === 0) {
-      const currentRow = 3;
-      for (let col = 2; col <= 8; col++) {
+      const currentRow = 4;
+      for (let col = 2; col <= 12; col++) {
         targetSheet.getRange(currentRow, col).setBackground('#FFFFFF');
       }
     }
 
-    previousStats = stats;
+    previousStats = { ...stats, noShowFirstPct, noShowMorningPct, showedFirstPct, showedMorningPct };
   });
 
   if (sortedWeeks.length > 0) {
-    targetSheet.getRange(1, 1, sortedWeeks.length + 2, 8).setBorder(true, true, true, true, true, true);
+    targetSheet.getRange(1, 1, sortedWeeks.length + 3, 12).setBorder(true, true, true, true, true, true);
   }
 }
 
@@ -405,21 +505,31 @@ function updateMonthlyDash() {
 
   targetSheet.clear();
 
-  const headerRow1 = ["Month", "No Shows", "No Shows", "Showed Calls", "Showed Calls", "Total", "Total", "Total"];
-  const headerRow2 = ["", "Responded to 1st Text", "Responded to Morning Text", "Responded to 1st Text", "Responded to Morning Text", "Total Calls for the Month", "Rescheduled", "Canceled"];
+  const headerRow1 = ["Month", "No Shows", "No Shows", "No Shows", "No Shows", "Showed Calls", "Showed Calls", "Showed Calls", "Showed Calls", "Total", "Total", "Total"];
+  const headerRow2 = ["", "Responded to 1st Text", "Responded to 1st Text", "Responded to Morning Text", "Responded to Morning Text", "Responded to 1st Text", "Responded to 1st Text", "Responded to Morning Text", "Responded to Morning Text", "Total Calls for the Month", "Rescheduled", "Canceled"];
+  const headerRow3 = ["", "Total Number", "Percentage", "Total Number", "Percentage", "Total Number", "Percentage", "Total Number", "Percentage", "", "", ""];
 
   targetSheet.appendRow(headerRow1);
   targetSheet.appendRow(headerRow2);
+  targetSheet.appendRow(headerRow3);
 
-  targetSheet.getRange(1, 1, 2, 1).merge(); // Merge "Month" across 2 rows
-  targetSheet.getRange(1, 2, 1, 2).merge(); // No Shows
-  targetSheet.getRange(1, 4, 1, 2).merge(); // Showed Calls
-  targetSheet.getRange(1, 6, 1, 3).merge(); // Total
+  targetSheet.getRange(1, 1, 3, 1).merge();
+  targetSheet.getRange(1, 2, 1, 4).merge();
+  targetSheet.getRange(1, 6, 1, 4).merge();
+  targetSheet.getRange(1, 10, 1, 3).merge();
 
-  targetSheet.getRange(1, 1, 2, 8).setHorizontalAlignment("center").setVerticalAlignment("middle");
-  targetSheet.getRange(1, 1, 2, 8).setFontWeight("bold");
+  targetSheet.getRange(2, 2, 1, 2).merge();
+  targetSheet.getRange(2, 4, 1, 2).merge();
+  targetSheet.getRange(2, 6, 1, 2).merge();
+  targetSheet.getRange(2, 8, 1, 2).merge();
+  targetSheet.getRange(2, 10, 2, 1).merge();
+  targetSheet.getRange(2, 11, 2, 1).merge();
+  targetSheet.getRange(2, 12, 2, 1).merge();
 
-  const columnWidths = [150, 150, 190, 150, 190, 170, 110, 100];
+  targetSheet.getRange(1, 1, 3, 12).setHorizontalAlignment("center").setVerticalAlignment("middle");
+  targetSheet.getRange(1, 1, 3, 12).setFontWeight("bold");
+
+  const columnWidths = [120, 90, 90, 90, 90, 90, 90, 90, 90, 160, 100, 100];
   columnWidths.forEach((width, i) => {
     targetSheet.setColumnWidth(i + 1, width);
   });
@@ -428,12 +538,22 @@ function updateMonthlyDash() {
 
   sortedMonths.forEach((monthKey, index) => {
     const stats = monthStats[monthKey];
+
+    const noShowFirstPct = stats.totalCalls > 0 ? (stats.noShowRespondedFirst / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+    const noShowMorningPct = stats.totalCalls > 0 ? (stats.noShowRespondedMorning / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+    const showedFirstPct = stats.totalCalls > 0 ? (stats.showedRespondedFirst / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+    const showedMorningPct = stats.totalCalls > 0 ? (stats.showedRespondedMorning / stats.totalCalls * 100).toFixed(1) + "%" : "0%";
+
     const rowData = [
       monthKey,
       stats.noShowRespondedFirst,
+      noShowFirstPct,
       stats.noShowRespondedMorning,
+      noShowMorningPct,
       stats.showedRespondedFirst,
+      showedFirstPct,
       stats.showedRespondedMorning,
+      showedMorningPct,
       stats.totalCalls,
       stats.rescheduled,
       stats.canceled
@@ -442,41 +562,71 @@ function updateMonthlyDash() {
     targetSheet.appendRow(rowData);
 
     if (index > 0 && previousStats) {
-      const currentRow = index + 3;
+      const currentRow = index + 4;
+      const columnsToColor = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-      for (let col = 2; col <= 8; col++) {
-        const currentValue = rowData[col - 1];
+      columnsToColor.forEach(col => {
+        const currentValue = col === 2 ? stats.noShowRespondedFirst :
+          col === 3 ? noShowFirstPct :
+            col === 4 ? stats.noShowRespondedMorning :
+              col === 5 ? noShowMorningPct :
+                col === 6 ? stats.showedRespondedFirst :
+                  col === 7 ? showedFirstPct :
+                    col === 8 ? stats.showedRespondedMorning :
+                      col === 9 ? showedMorningPct :
+                        col === 10 ? stats.totalCalls :
+                          col === 11 ? stats.rescheduled :
+                            stats.canceled;
+
         const previousValue = col === 2 ? previousStats.noShowRespondedFirst :
-          col === 3 ? previousStats.noShowRespondedMorning :
-            col === 4 ? previousStats.showedRespondedFirst :
-              col === 5 ? previousStats.showedRespondedMorning :
-                col === 6 ? previousStats.totalCalls :
-                  col === 7 ? previousStats.rescheduled :
-                    previousStats.canceled;
+          col === 3 ? previousStats.noShowFirstPct :
+            col === 4 ? previousStats.noShowRespondedMorning :
+              col === 5 ? previousStats.noShowMorningPct :
+                col === 6 ? previousStats.showedRespondedFirst :
+                  col === 7 ? previousStats.showedFirstPct :
+                    col === 8 ? previousStats.showedRespondedMorning :
+                      col === 9 ? previousStats.showedMorningPct :
+                        col === 10 ? previousStats.totalCalls :
+                          col === 11 ? previousStats.rescheduled :
+                            previousStats.canceled;
 
         let color;
-        if (currentValue > previousValue) {
-          color = '#90EE90'; // Light green
-        } else if (currentValue === previousValue) {
-          color = '#FFFF99'; // Light yellow
+
+        if (String(currentValue).includes("%") || String(previousValue).includes("%")) {
+          const formattedCurrent = parseFloat(String(currentValue).replace("%", ""));
+          const formattedPrevious = parseFloat(String(previousValue).replace("%", ""));
+
+          if (formattedCurrent > formattedPrevious) {
+            color = '#90EE90'; // Light green
+          } else if (formattedCurrent === formattedPrevious) {
+            color = '#FFFF99'; // Light yellow
+          } else {
+            color = '#FFB6C1'; // Light red
+          }
         } else {
-          color = '#FFB6C1'; // Light red
+          if (currentValue > previousValue) {
+            color = '#90EE90'; // Light green
+          } else if (currentValue === previousValue) {
+            color = '#FFFF99'; // Light yellow
+          } else {
+            color = '#FFB6C1'; // Light red
+          }
         }
 
         targetSheet.getRange(currentRow, col).setBackground(color);
-      }
+      });
     } else if (index === 0) {
-      const currentRow = 3;
-      for (let col = 2; col <= 8; col++) {
+      const currentRow = 4;
+      for (let col = 2; col <= 12; col++) {
         targetSheet.getRange(currentRow, col).setBackground('#FFFFFF');
       }
     }
 
-    previousStats = stats;
+    previousStats = { ...stats, noShowFirstPct, noShowMorningPct, showedFirstPct, showedMorningPct };
   });
 
   if (sortedMonths.length > 0) {
-    targetSheet.getRange(1, 1, sortedMonths.length + 2, 8).setBorder(true, true, true, true, true, true);
+    targetSheet.getRange(1, 1, sortedMonths.length + 3, 12).setBorder(true, true, true, true, true, true);
   }
 }
 
