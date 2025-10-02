@@ -40,7 +40,7 @@ function generateClippingStats() {
   const lowTicketSpreadsheetId = '1fZwddCvFHV1e3yuP_BjEctZHlE5Q6GC5yBrBGDHjT2U';
   const lowTicketSheet = SpreadsheetApp.openById(lowTicketSpreadsheetId);
   const lowTicketTab = lowTicketSheet.getSheetByName('ALL DATA VIEW');
-  
+
   if (!lowTicketTab) {
     SpreadsheetApp.getUi().alert('External sheet "ALL DATA VIEW" not found.');
     return;
@@ -50,7 +50,7 @@ function generateClippingStats() {
   const highTicketSpreadsheetId = '10tbO1W5qC3X7vY_EbNp6nMf6E7BsvrrFrgvpL15HBLw';
   const highTicketSheet = SpreadsheetApp.openById(highTicketSpreadsheetId);
   const highTicketTab = highTicketSheet.getSheetByName('Post Call Reports');
-  
+
   if (!highTicketTab) {
     SpreadsheetApp.getUi().alert('External sheet "Post Call Reports" not found.');
     return;
@@ -62,7 +62,7 @@ function generateClippingStats() {
     SpreadsheetApp.getUi().alert('No data found in Low Ticket sheet.');
     return;
   }
-  
+
   const lowTicketDates = lowTicketTab.getRange(2, 1, lowTicketLastRow - 1, 1).getValues();
   const lowTicketRevenues = lowTicketTab.getRange(2, 5, lowTicketLastRow - 1, 1).getValues();
 
@@ -72,7 +72,7 @@ function generateClippingStats() {
     SpreadsheetApp.getUi().alert('No data found in High Ticket sheet.');
     return;
   }
-  
+
   const highTicketValues = highTicketTab.getRange(2, 1, highTicketLastRow - 1, 12).getValues();
 
   // Valid statuses for High Ticket Revenue (normalized)
@@ -89,41 +89,41 @@ function generateClippingStats() {
 
   // Group Low Ticket revenue by month/year
   const lowTicketMonthlyRevenue = {};
-  
+
   for (let i = 0; i < lowTicketDates.length; i++) {
     const date = new Date(lowTicketDates[i][0]);
     if (isNaN(date.getTime())) continue;
-    
+
     const month = date.getMonth();
     const year = date.getFullYear();
     const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-    
+
     if (!lowTicketMonthlyRevenue[monthKey]) {
       lowTicketMonthlyRevenue[monthKey] = 0;
     }
-    
+
     const revenue = parseFloat(lowTicketRevenues[i][0]) || 0;
     lowTicketMonthlyRevenue[monthKey] += revenue;
   }
 
   // Group High Ticket revenue by month/year
   const highTicketMonthlyRevenue = {};
-  
+
   for (let i = 0; i < highTicketValues.length; i++) {
     const date = new Date(highTicketValues[i][0]); // Column A
     const status = cleanStatusString(highTicketValues[i][8]); // Column I
     const cashCollected = parseFloat(highTicketValues[i][11]) || 0; // Column L
-    
+
     if (isNaN(date.getTime()) || !validStatuses.includes(status)) continue;
-    
+
     const month = date.getMonth();
     const year = date.getFullYear();
     const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-    
+
     if (!highTicketMonthlyRevenue[monthKey]) {
       highTicketMonthlyRevenue[monthKey] = 0;
     }
-    
+
     highTicketMonthlyRevenue[monthKey] += cashCollected;
   }
 
@@ -132,18 +132,18 @@ function generateClippingStats() {
     ...Object.keys(lowTicketMonthlyRevenue),
     ...Object.keys(highTicketMonthlyRevenue)
   ]);
-  
+
   const sortedMonths = Array.from(allMonthKeys).sort();
   const dataRows = [];
-  
+
   for (const monthKey of sortedMonths) {
     const [year, month] = monthKey.split('-');
     const date = new Date(year, month - 1, 1);
     const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    
+
     const lowTicketRev = lowTicketMonthlyRevenue[monthKey] || 0;
     const highTicketRev = highTicketMonthlyRevenue[monthKey] || 0;
-    
+
     dataRows.push([
       monthName,                    // Month
       '',                           // Total Clipping Spend (to be filled manually)
@@ -157,7 +157,7 @@ function generateClippingStats() {
   // Write data to sheet
   if (dataRows.length > 0) {
     sheet.getRange(2, 1, dataRows.length, 6).setValues(dataRows);
-    
+
     // Format revenue columns as currency
     sheet.getRange(2, 4, dataRows.length, 1).setNumberFormat('$#,##0.00'); // Low Ticket
     sheet.getRange(2, 5, dataRows.length, 1).setNumberFormat('$#,##0.00'); // High Ticket
