@@ -40,7 +40,8 @@ const CLOSER_CONFIG = {
   CLOSERS: [
     'Alex El-H',
     'Easton Tomak',
-    'Carmen Pinto'
+    'Carmen Pinto',
+    'Ken Coleman'
   ]
 };
 
@@ -2722,7 +2723,9 @@ function populateVortexDailyData(sheet, row, dayData, previousDayData = null) {
   const closes = dayData.closes || 0;
   const newCash = dayData.newCash || 0;
   const fuCash = dayData.fuCash || 0;
-  const conversionRate = discordJoins > 0 ? `${Math.round((lowTicketBuys / discordJoins) * 100)}%` : '0%';
+  const conversionRate = discordJoins > 0 
+  ? `${((lowTicketBuys / discordJoins) * 100).toFixed(1)}%` 
+  : '0.0%';
   const formattedDiscordJoins = discordJoins > 0 ? discordJoins.toLocaleString() : discordJoins;
   const formattedtotalTriageCalls = totalTriageCalls > 0 ? totalTriageCalls.toLocaleString() : totalTriageCalls;
 
@@ -3622,7 +3625,10 @@ function populateVortexMonthlyData(sheet, row, monthData, previousMonthData = nu
   const closes = monthData.closes || 0;
   const newCash = monthData.newCash || 0;
   const fuCash = monthData.fuCash || 0;
-  const conversionRate = discordJoins > 0 ? `${Math.round((lowTicketBuys / discordJoins) * 100)}%` : '0%';
+  const conversionRate = discordJoins > 0 
+  ? `${((lowTicketBuys / discordJoins) * 100).toFixed(1)}%` 
+  : '0.0%';
+
 
   const formattedDiscordJoins = discordJoins > 0 ? discordJoins.toLocaleString() : discordJoins;
   const formattedlowTicketBuys = lowTicketBuys > 0 ? lowTicketBuys.toLocaleString() : lowTicketBuys;
@@ -4012,7 +4018,10 @@ function populateVortexWeeklyData(sheet, row, weekData, previousWeekData = null)
   const closes = weekData.closes || 0;
   const newCash = weekData.newCash || 0;
   const fuCash = weekData.fuCash || 0;
-  const conversionRate = discordJoins > 0 ? `${Math.round((lowTicketBuys / discordJoins) * 100)}%` : '0%';
+  const conversionRate = discordJoins > 0 
+    ? `${((lowTicketBuys / discordJoins) * 100).toFixed(1)}%` 
+    : '0.0%';
+
 
   const formattedDiscordJoins = discordJoins > 0 ? discordJoins.toLocaleString() : discordJoins;
   const formattedlowTicketBuys = lowTicketBuys > 0 ? lowTicketBuys.toLocaleString() : lowTicketBuys;
