@@ -67,7 +67,7 @@ function generateClippingStats() {
     return;
   }
 
-  const lowTicketDates = lowTicketTab.getRange(2, 1, lowTicketLastRow - 1, 1).getValues();
+  const lowTicketDates = lowTicketTab.getRange(2, 1, lowTicketLastRow - 1, 1).getDisplayValues();
   const lowTicketRevenues = lowTicketTab.getRange(2, 5, lowTicketLastRow - 1, 1).getValues();
 
   // Get High Ticket data (columns A, I, and L)
